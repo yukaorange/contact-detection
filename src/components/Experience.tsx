@@ -19,11 +19,11 @@ export const Experience = (): JSX.Element => {
       <OrbitControls />
       <ambientLight intensity={0.01} />
       <mesh>
-        <planeGeometry args={[1, 1, 1]} />
+        {/* <planeGeometry args={[1, 1, 1]} />
         <shaderMaterial
           vertexShader={vertexshader}
           fragmentShader={fragmentShader}
-        />
+        /> */}
       </mesh>
     </>
   )
