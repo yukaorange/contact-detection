@@ -42,7 +42,7 @@ export const Scene = () => {
   const { gl, scene, camera } = useThree()
 
   /**
-   * コンポーザーのリサイズ
+   * リサイズ
    */
   const handleResize = useCallback(() => {
     console.log('resize')
@@ -62,9 +62,11 @@ export const Scene = () => {
   }, [])
 
   /**
-   * コンポーザーの設定を行う
+   * 初期設定を行う
    */
   useEffect(() => {
+    console.log('init Scene')
+
     //深度を取得するための下準備
     const depthRenderTarget = new THREE.WebGLRenderTarget(width, height, {
       //LinearFilterは、テクスチャを縮小する際に、近くのピクセルの色を平均化して滑らかな縮小を行う。
@@ -148,6 +150,9 @@ export const Scene = () => {
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = false
       }
+      if (collisitonRef.current) {
+        collisitonRef.current.visible = true
+      }
 
       /**
        * 深度バッファに深度値を焼き付ける
@@ -156,6 +161,10 @@ export const Scene = () => {
         gl.setRenderTarget(depthRenderTarget)
         gl.render(scene, camera)
         gl.setRenderTarget(null)
+      }
+
+      if (collisitonRef.current) {
+        collisitonRef.current.visible = false
       }
 
       if (zennlessZoneSphereRef.current) {

@@ -19,9 +19,13 @@ void main() {
   float depth = readDepth(tDepth, fragCoord);
 
    //接触判定
+   //球体を除外した深度値 - カメラからの距離 = 接触量
   float contactAmount = depth - normalizedDistance;
 
-  float contactDiffuseValue = smoothstep(0.0, 0.1, contactAmount);
+  //接触量を最大値にジャンプさせる値の閾値
+  float contactDetectEdge = 0.02;
+
+  float contactDiffuseValue = smoothstep(0.0, contactDetectEdge, contactAmount);
 
   //------- 試験的に各色を取得 -------
   vec3 depthColor = vec3(1.0 - depth);
