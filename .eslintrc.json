@@ -20,7 +20,39 @@
   },
   "plugins": ["react", "@typescript-eslint", "react-hooks"],
   "rules": {
-    "react/react-in-jsx-scope": "off"
+    "react/react-in-jsx-scope": "off",
+    "react/no-unknown-property": [
+      "error",
+      {
+        "ignore": [
+          "attach",
+          "args",
+          "intensity",
+          "position",
+          "rotation",
+          "scale",
+          "geometry",
+          "material",
+          "matrix",
+          "quaternion",
+          "raycast",
+          "dispose",
+          "up",
+          "uniforms",
+          "vertexShader",
+          "fragmentShader",
+          "side",
+          "wireframe",
+          "color",
+          "map",
+          "metalness",
+          "roughness",
+          "opacity",
+          "transparent",
+          "visible"
+        ]
+      }
+    ]
   },
   "settings": {
     "react": {
