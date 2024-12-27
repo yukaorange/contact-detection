@@ -6,8 +6,6 @@
 import { Scene } from './Scene/Scene'
 
 export const Experience = (): JSX.Element => {
- 
-
   return (
     <>
       <color attach="background" args={['#000000']} />

@@ -20,7 +20,7 @@ export const MovingCube = ({
         <mesh position={[0, 0, 0]} ref={collisionSphereRef}>
           {/* 立方体を包む大きさ */}
           <sphereGeometry args={[Math.sqrt(5) / 2, 32, 32]} />
-          <meshBasicMaterial visible={true} color="#000000" />
+          <meshBasicMaterial visible={true} color="#5bfd1b" />
         </mesh>
       </group>
     </>

@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 
 import vertexshader from '@/shaders/ground/vertex.glsl'
 import fragmentShader from '@/shaders/ground/fragment.glsl'
-import THREE from 'three'
+import * as THREE from 'three'
 
 export const Ground = () => {
   const groundRef = useRef<THREE.Mesh>(null)
