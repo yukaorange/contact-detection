@@ -1,13 +1,13 @@
 import React, { useCallback, useRef, useState } from 'react'
 import { Ground } from './Ground'
 import { ZennlessZoneSphere } from './ZennlessZoneSphere'
-import { MovingCube } from './MovingCube'
+import { MovingCubes } from './MovingCubes'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
 import { SMAAPass, ShaderPass } from 'three/examples/jsm/Addons.js'
-import { CheckDepthPassConfig } from './Effect/CheckDepthPassConfig'
+import { CheckDepthPassConfig } from './PostProcess/CheckDepthPassConfig'
 
 import { useEffect } from 'react'
 
@@ -25,17 +25,18 @@ export const Scene = () => {
     useState<THREE.WebGLRenderTarget | null>(null)
 
   /**
-   * dprを固定し、プロジェクトで扱う画面サイズを提供
-   */
-  const dpr = Math.min(window.devicePixelRatio, 2)
-  const width = window.innerWidth * dpr
-  const height = window.innerHeight * dpr
-  /**
    * シーンに配置する各メッシュのRefオブジェクトを初期化
    */
   const zennlessZoneSphereRef = useRef<THREE.Mesh>(null)
   const movingCubeRef = useRef<THREE.Group>(null)
   const collisitonRef = useRef<THREE.Mesh>(null)
+  /**
+   * ２種類の球体の半径を設定
+   */
+  const sphereRadius = 2
+  const cubeSize = 1
+  const collisionSphereRadius = Math.sqrt(5) / 2 // 立方体の対角線の半分の長さ
+
   /**
    * three.jsの各オブジェクトを取得
    */
@@ -45,17 +46,13 @@ export const Scene = () => {
    * リサイズ
    */
   const handleResize = useCallback(() => {
-    console.log('resize')
+    const dpr = Math.min(window.devicePixelRatio, 2)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
+    // console.log('resize : ', width, height)
 
     composer?.setSize(width, height)
-
-    //深度値取得用のレンダーターゲットを更新
-    if (depthRenderTarget) {
-      depthRenderTarget.setSize(window.innerWidth, window.innerHeight)
-      depthRenderTarget.depthTexture.image.width = width
-      depthRenderTarget.depthTexture.image.height = height
-      depthRenderTarget.depthTexture.needsUpdate = true
-    }
 
     // composerは毎フレーム更新されるので、ここの依存配列には入れないでおく。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,6 +62,10 @@ export const Scene = () => {
    * 初期設定を行う
    */
   useEffect(() => {
+    const dpr = Math.min(window.devicePixelRatio, 2)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
     console.log('init Scene')
 
     //深度を取得するための下準備
@@ -94,18 +95,6 @@ export const Scene = () => {
     CheckDepthPass.uniforms.tDepth.value = depthRenderTarget.depthTexture
     CheckDepthPass.uniforms.cameraNear.value = camera.near
     CheckDepthPass.uniforms.cameraFar.value = camera.far
-
-    /**
-     * 深度テクスチャをZennlessZoneShpereに送信し、接触判定などに使用する
-     */
-    if (zennlessZoneSphereRef.current) {
-      const material = zennlessZoneSphereRef.current
-        .material as THREE.ShaderMaterial
-      material.uniforms.tDepth.value = depthRenderTarget.depthTexture
-      material.uniforms.cameraNear.value = camera.near
-      material.uniforms.cameraFar.value = camera.far
-      material.uniforms.uResolution.value = new THREE.Vector2(width, height)
-    }
 
     // 低負荷ジャギー軽減処理
     const smaaPass = new SMAAPass(width, height)
@@ -147,11 +136,15 @@ export const Scene = () => {
    */
   useFrame(
     (state, delta) => {
+      const { clock } = state
+      /**
+       * 中央の球体、接触判定用の球体を不可視にする
+       */
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = false
       }
       if (collisitonRef.current) {
-        collisitonRef.current.visible = true
+        collisitonRef.current.visible = false
       }
 
       /**
@@ -163,14 +156,92 @@ export const Scene = () => {
         gl.setRenderTarget(null)
       }
 
-      if (collisitonRef.current) {
-        collisitonRef.current.visible = false
-      }
+      /**
+       * 接触点の割り出し
+       */
+      if (zennlessZoneSphereRef.current && collisitonRef.current) {
+        //マテリアルの準備
+        const shaderMaterial = zennlessZoneSphereRef.current
+          .material as THREE.ShaderMaterial
 
+        //タイム更新
+        shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
+
+        //中央の球体のワールド座標を取得
+        const sphereCenter = new THREE.Vector3()
+        zennlessZoneSphereRef.current.getWorldPosition(sphereCenter)
+
+        //接触判定用の球体のワールド座標を取得
+        const collisionCenter = new THREE.Vector3()
+        collisitonRef.current.getWorldPosition(collisionCenter)
+
+        //接触判定用の球体の中心から中央の球体の中心へのベクトルを取得
+        //subは呼び出し元のベクトルを変更するので、clone()してから呼び出している。collisionCenterからsphereCenterへの正規化ベクトルを取得
+        const direction = collisionCenter.clone().sub(sphereCenter).normalize()
+        const distance = collisionCenter.distanceTo(sphereCenter)
+
+        const totalRadius = sphereRadius + collisionSphereRadius
+
+        // 接触が発生している場合のみ接触点を計算
+        if (distance < totalRadius) {
+          //接触量
+          const penetrationDepth = totalRadius - distance
+
+          //接触量を正規化
+          const normalizedPenetrationDepth = Math.min(
+            penetrationDepth / totalRadius,
+            1.0,
+          )
+
+          // 接触点を計算（考え方はsubの時と同様）
+          const contactPoint = sphereCenter
+            .clone()
+            .add(direction.multiplyScalar(sphereRadius))
+
+          shaderMaterial.uniforms.contactPoint.value = contactPoint
+          shaderMaterial.uniforms.uContactIntensity.value =
+            normalizedPenetrationDepth
+          shaderMaterial.uniforms.uHasContact.value = 1.0
+
+          // デバッグ用
+          console.log('接触点:', contactPoint)
+        } else {
+          // 接触していない場合
+          shaderMaterial.uniforms.uHasContact.value = 0.0
+        }
+
+        // デバッグ用
+        // console.log(
+        //   'sphereCenter : ',
+        //   sphereCenter,
+        //   '\n',
+        //   'collisionCenter : ',
+        //   collisionCenter,
+        //   '\n',
+        //   'direction : ',
+        //   direction,
+        //   '\n',
+        //   'distance : ',
+        //   distance,
+        //   '\n',
+        //   '接触判定の閾値',
+        //   sphereRadius + collisionSphereRadius,
+        //   '\n',
+        // )
+      }
+      /**
+       * 中央の球体を可視にする
+       */
+      // if (collisitonRef.current) {
+      //   collisitonRef.current.visible = true
+      // }
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = true
       }
 
+      /**
+       * エフェクトコンポーザーのレンダリング
+       */
       composer?.render(delta)
     },
     /**
@@ -183,14 +254,20 @@ export const Scene = () => {
     <>
       <ambientLight intensity={0.01} />
       {/* 半透明の球体 */}
-      <ZennlessZoneSphere zennlessZoneSphereRef={zennlessZoneSphereRef} />
+      <ZennlessZoneSphere
+        zennlessZoneSphereRef={zennlessZoneSphereRef}
+        depthTexture={depthRenderTarget?.depthTexture || null}
+        sphereRadius={sphereRadius}
+      />
       {/* 固定された円柱 */}
       <FloatingCylinders />
       <DragControls axisLock="y">
         {/* 動く立方体(接触判定は球体が担う) */}
-        <MovingCube
+        <MovingCubes
           movingCubeRef={movingCubeRef}
           collisionSphereRef={collisitonRef}
+          cubeSize={cubeSize}
+          sphereRadius={collisionSphereRadius}
         />
       </DragControls>
       <Ground />

@@ -1,5 +1,7 @@
 varying float vCamaraDistance;
 varying vec2 vUv;
+varying vec3 vWorldPosition;
+
 void main() {
   vUv = uv;
 
@@ -10,6 +12,7 @@ void main() {
   vec3 worldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
 
   vCamaraDistance = -viewPosition.z;
+  vWorldPosition = worldPosition.xyz;
 
   gl_Position = projectionMatrix * viewPosition;
 }

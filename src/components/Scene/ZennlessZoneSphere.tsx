@@ -1,16 +1,24 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import fragmentShader from '@/shaders/sphere/fragment.glsl'
+import { useThree } from '@react-three/fiber'
 import vertexShader from '@/shaders/sphere/vertex.glsl'
 
 interface ZennlessZoneSphereProps {
   zennlessZoneSphereRef: React.MutableRefObject<THREE.Mesh | null>
+  depthTexture: THREE.DepthTexture | null
+  sphereRadius: number
 }
 
 export const ZennlessZoneSphere = ({
   zennlessZoneSphereRef,
+  depthTexture,
+  sphereRadius,
 }: ZennlessZoneSphereProps) => {
-  console.log('re render ZennlessZoneSphere')
+  /**
+   * three.jsの各オブジェクトを取得
+   */
+  const { camera } = useThree()
 
   const material = useMemo(() => {
     const shaderMaterial = new THREE.ShaderMaterial({
@@ -24,6 +32,12 @@ export const ZennlessZoneSphere = ({
         uResolution: {
           value: new THREE.Vector2(window.innerWidth, window.innerHeight),
         }, //よって、gl_fragcoordの正規化に使うだけなので、リサイズは不要...初期化したときのままで、0 -> 1 とできているし、それはリサイズ後も変わらないため。
+        contactPoint: {
+          value: new THREE.Vector3(0, 0, 0),
+        },
+        uContactIntensity: { value: 0 },
+        uHasContact: { value: 0 },
+        uTime: { value: 0 },
       },
       fragmentShader,
       vertexShader,
@@ -34,9 +48,17 @@ export const ZennlessZoneSphere = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!material || !depthTexture) return
+
+    material.uniforms.tDepth.value = depthTexture
+    material.uniforms.cameraNear.value = camera.near
+    material.uniforms.cameraFar.value = camera.far
+  }, [material, depthTexture, camera])
+
   return (
     <mesh ref={zennlessZoneSphereRef} material={material}>
-      <sphereGeometry args={[2, 32, 32]} />
+      <sphereGeometry args={[sphereRadius, 32, 32]} />
     </mesh>
   )
 }
