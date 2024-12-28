@@ -21,7 +21,7 @@ export const Experience = (): JSX.Element => {
         maxDistance={10} // カメラの最大距離
         // オプション: 慣性の追加
         enableDamping={true}
-        dampingFactor={0.01}
+        dampingFactor={0.1}
       />
       <Scene />
     </>

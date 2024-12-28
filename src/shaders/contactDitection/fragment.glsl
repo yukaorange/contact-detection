@@ -19,10 +19,12 @@ void main() {
 
   //------- Original color
   vec4 originalDiffuse = texture2D(tDiffuse, vUv);
+
   vec3 originalColor = originalDiffuse.rgb;
 
   //-------接触判定部分の色
   vec4 contactDitectionDiffuse = texture2D(tContactDitectionDiffuse, vUv);
+
   vec3 contactDitectionColor = contactDitectionDiffuse.rgb;
 
   //-------接触判定部分とグリッドを合成(接触グリッド)
