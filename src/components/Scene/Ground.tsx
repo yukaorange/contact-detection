@@ -16,7 +16,10 @@ export const Ground = ({ groundRef }: GroundProps) => {
         value: 0,
       },
       uGridItteration: {
-        value: 48,
+        value: 64,
+      },
+      uRenderContactDitection: {
+        value: 0,
       },
     }
   }, [])

@@ -3,7 +3,6 @@ uniform sampler2D tDepth;
 uniform float cameraNear;
 uniform float cameraFar;
 
-varying float vCamaraDistance;
 varying vec2 vUv;
 
 #include ../utils/readDepth.glsl
@@ -14,9 +13,6 @@ void main() {
 
   //深度値
   float depth = readDepth(tDepth, vUv);
-  // float normalizedDistance = (vCamaraDistance - cameraNear) / (cameraFar - cameraNear);
-
-
 
   vec3 depthColor = vec3(1.0 - depth);
 

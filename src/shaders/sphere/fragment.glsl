@@ -11,7 +11,7 @@ uniform vec3 contactPoint;
 uniform sampler2D tDepth;
 uniform sampler2D tBackground;
 
-varying float vCamaraDistance;
+varying float vCameraDistance;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying vec3 vEyeVector;
@@ -25,7 +25,7 @@ void main() {
 
   vec2 fragCoord = gl_FragCoord.xy / uResolution.xy;
 
-  vec4 baseColor = vec4(0.1, 0.5, 0.6, 0.32);
+  vec4 baseColor = vec4(0.031, 0.0, 0.078, 1.0); // #080014
 
   //--------疑似背景（ゆがみエフェクトで使用）
   vec4 background = texture2D(tBackground, fragCoord);
@@ -35,7 +35,7 @@ void main() {
 
   //------- 深度値とカメラ距離を使った接触判定
   //カメラからの距離を正規化
-  float normalizedDistance = (vCamaraDistance - cameraNear) / (cameraFar - cameraNear);
+  float normalizedDistance = (vCameraDistance - cameraNear) / (cameraFar - cameraNear);
 
  //深度値
   float depth = readDepth(tDepth, fragCoord);
@@ -44,7 +44,7 @@ void main() {
   float contactAmount = depth - normalizedDistance;
 
   //接触量を最大値にはじく閾値
-  float contactDetectEdge = 0.05;
+  float contactDetectEdge = 0.03;
 
   //閾値を使った値のスムージング
   float contactDiffuseValue = smoothstep(0.0, contactDetectEdge, contactAmount);
@@ -53,16 +53,17 @@ void main() {
   float distanceFromContact = clamp(length(vWorldPosition - contactPoint), 0.0, 1.0);//clampしておかないと、影響範囲が制限できない。
 
   //------- デバッグ -------
-  vec3 depthColor = vec3(1.0 - depth);
-  vec3 distanceColor = vec3(1.0 - normalizedDistance);
+  vec3 depthColor = vec3(depth, 0.0, 0.0);
+  vec3 distanceColor = vec3(normalizedDistance, 0.0, 0.0);
   vec3 testDistanceColor = vec3(distanceFromContact);
   vec3 contactColor = vec3(1.0 - contactDiffuseValue);
-  vec3 testContactColor = vec3(1.0 - contactAmount);
+  vec3 testContactColor = vec3(contactAmount);
   vec3 distanceFromContactColor = vec3(1.0 - distanceFromContact) * uContactIntensity;
+  vec3 fresnelColor = vec3(fresnelValue);
 
   vec3 test;
-  test = depthColor;
-  // test = testDistanceColor;
+  // test = depthColor;
+  // test = distanceColor;
   // test = testContactColor;
   // test = contactColor;
   // test += distanceFromContactColor;
@@ -71,16 +72,26 @@ void main() {
   // test *= baseColor.rgb;
   // test += baseColor.rgb * 0.5;
   // test = contactColor;
-  // test += vec3(fresnelValue);
+  test = fresnelColor;
 
   //------- 出力 
-  vec3 color = test;
+  vec3 color;
+
+  // color = test;
+
+  color += fresnelColor;
+  color += distanceFromContactColor;
+  color += baseColor.rgb;
+
+  //------- 透明度
+  float alpha = baseColor.a;
 
   //-------接触判定のみの出力
   if(uRenderContactDitection == 1.0) {
-    color = vec3(contactColor);
+    color = contactColor;
+    alpha = 0.2;
   }
 
-  gl_FragColor = vec4(color, baseColor.a);
+  gl_FragColor = vec4(color, alpha);
 
 }

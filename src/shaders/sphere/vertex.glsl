@@ -1,4 +1,4 @@
-varying float vCamaraDistance;
+varying float vCameraDistance;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying vec3 vEyeVector;
@@ -19,7 +19,7 @@ void main() {
   vEyeVector = normalize(worldPosition.xyz - cameraPosition);
 
   //ビュー座標系におけるカメラからの距離
-  vCamaraDistance = -viewPosition.z;
+  vCameraDistance = -viewPosition.z;
 
   gl_Position = projectionMatrix * viewPosition;
 }

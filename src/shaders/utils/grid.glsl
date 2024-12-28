@@ -67,8 +67,8 @@ float cornerCrossSDF(vec2 uv, float size, float intensity) {
 
 vec3 createGrid(
   vec2 uv,
-  vec2 resolution
-  // float time
+  vec2 resolution,
+  float lineWidth
 ) {
   vec3 color;
 
@@ -79,14 +79,13 @@ vec3 createGrid(
 
   vec2 gridUv = mod(uv, 1.0);
 
-  float baseSquare = rectSDF(gridUv, vec2(0.01), 0.1);
+  float baseSquare = rectSDF(gridUv, vec2(lineWidth), 0.1);
 
   color = vec3(baseSquare);
 
   //今回はcornerのクロスは使わない
   // float crossColor = cornerCrossSDF(gridUv, 0.0064, 0.3);
   // color = vec3(crossColor + baseSquare);
-
 
   return color;
 }

@@ -88,8 +88,13 @@ export const Scene = () => {
         //LinearFilterは、テクスチャを縮小する際に、近くのピクセルの色を平均化して滑らかな縮小を行う。
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
+        type: THREE.UnsignedByteType,
         depthBuffer: true,
-        depthTexture: new THREE.DepthTexture(width, height, THREE.FloatType),
+        depthTexture: new THREE.DepthTexture(
+          width,
+          height,
+          THREE.UnsignedByteType,
+        ),
       },
     )
 
@@ -102,14 +107,14 @@ export const Scene = () => {
       {
         minFilter: THREE.LinearFilter,
         magFilter: THREE.LinearFilter,
-        colorSpace: THREE.SRGBColorSpace,
+        type: THREE.UnsignedByteType,
+        colorSpace: THREE.LinearSRGBColorSpace,
       },
     )
 
     setContactDitectionRenderTarget(contactDitectionRenderTarget)
 
     //------- エフェクトコンポーザーの設定
-
     //エフェクトコンポーザーの初期化
     const effectComposer = new EffectComposer(gl)
 
@@ -131,14 +136,19 @@ export const Scene = () => {
 
     contactDitectionPass.uniforms.tContactDitectionDiffuse.value =
       contactDitectionRenderTarget.texture
+    contactDitectionPass.uniforms.uResolution.value = new THREE.Vector2(
+      width,
+      height,
+    )
+    contactDitectionPass.uniforms.uAspect.value = width / height
 
     // ブルームエフェクト
-    // const unrealBloomPass = new UnrealBloomPass(
-    //   new THREE.Vector2(width, height),
-    //   0.35, //strength
-    //   0.0, //radius
-    //   0.0, //threshold
-    // )
+    const unrealBloomPass = new UnrealBloomPass(
+      new THREE.Vector2(width, height),
+      0.36, //strength
+      0.3, //radius
+      0.01, //threshold
+    )
 
     // 低負荷ジャギー軽減処理
     const smaaPass = new SMAAPass(width, height)
@@ -155,9 +165,9 @@ export const Scene = () => {
 
     effectComposer.addPass(renderPass)
     //深度を確認するときだけ有効にする
-    effectComposer.addPass(CheckDepthPass)
-    // effectComposer.addPass(contactDitectionPass)
-    // effectComposer.addPass(unrealBloomPass)
+    // effectComposer.addPass(CheckDepthPass)
+    effectComposer.addPass(contactDitectionPass)
+    effectComposer.addPass(unrealBloomPass)
     effectComposer.addPass(smaaPass)
 
     setComposer(effectComposer)
@@ -310,13 +320,19 @@ export const Scene = () => {
 
         floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 1
       }
+      if (groundRef.current) {
+        const groundShaderMaterial = groundRef.current
+          .material as THREE.ShaderMaterial
 
-      // if (contactDitectionRenderTarget && gl && scene && camera) {
-      //   gl.setRenderTarget(contactDitectionRenderTarget)
-      //   gl.render(scene, camera)
-      //   gl.setRenderTarget(null)
-      // }
-      //各オブジェクトの黒塗りを解除
+        groundShaderMaterial.uniforms.uRenderContactDitection.value = 1
+      }
+
+      if (contactDitectionRenderTarget && gl && scene && camera) {
+        gl.setRenderTarget(contactDitectionRenderTarget)
+        gl.render(scene, camera)
+        gl.setRenderTarget(null)
+      }
+      // 各オブジェクトの黒塗りを解除
       if (zennlessZoneSphereRef.current) {
         const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
           .material as THREE.ShaderMaterial
@@ -334,6 +350,12 @@ export const Scene = () => {
           .material as THREE.ShaderMaterial
 
         floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 0
+      }
+      if (groundRef.current) {
+        const groundShaderMaterial = groundRef.current
+          .material as THREE.ShaderMaterial
+
+        groundShaderMaterial.uniforms.uRenderContactDitection.value = 0
       }
 
       /**
@@ -359,16 +381,16 @@ export const Scene = () => {
       />
       {/* 固定された円柱 */}
       <FloatingCylinders floatingCylinerRef={floatingCylinerRef} />
-      <DragControls axisLock="y">
-        {/* 動く立方体(接触判定は球体が担う) */}
-        <MovingCubes
-          movingCubeRef={movingCubeRef}
-          collisionSphereRef={collisitonRef}
-          cubeRef={cubeRef}
-          cubeSize={cubeSize}
-          sphereRadius={collisionSphereRadius}
-        />
-      </DragControls>
+      {/* 動く立方体(接触判定は球体が担う) */}
+      <MovingCubes
+        movingCubeRef={movingCubeRef}
+        collisionSphereRef={collisitonRef}
+        cubeRef={cubeRef}
+        cubeSize={cubeSize}
+        sphereRadius={collisionSphereRadius}
+      />
+      {/* <DragControls axisLock="y">
+      </DragControls> */}
       <Ground groundRef={groundRef} />
     </>
   )

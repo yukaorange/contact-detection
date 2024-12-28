@@ -23,6 +23,10 @@ export const ZennlessZoneSphere = ({
   const { camera } = useThree()
 
   const material = useMemo(() => {
+    const dpr = Math.min(window.devicePixelRatio, 2)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
     const shaderMaterial = new THREE.ShaderMaterial({
       uniforms: {
         tDepth: { value: null },
@@ -33,7 +37,7 @@ export const ZennlessZoneSphere = ({
          * 本来ならば、ここのwidth,heigh値はリサイズの度に変更する必要があるが、今回のプロジェクトではtDepthがリサイズの度に初期化されるのはパフォーマンスの観点から好ましくない。当然、コードの書き方を変えればこの問題は回避出来るはずだが、今回はデモシーンということもあり、このままにしておく。gl_FragCoordとuResolutionは初期化時のままで正規化できるから、それで充分。リサイズの度に正規化を再計算するまでもないと判断。
          */
         uResolution: {
-          value: new THREE.Vector2(window.innerWidth, window.innerHeight),
+          value: new THREE.Vector2(width, height),
         }, //よって、gl_fragcoordの正規化に使うだけなので、リサイズは不要...初期化したときのままで、0 -> 1 とできているし、それはリサイズ後も変わらないため。
         contactPoint: {
           value: new THREE.Vector3(0, 0, 0),
@@ -44,7 +48,7 @@ export const ZennlessZoneSphere = ({
         uRenderContactDitection: {
           value: 0,
         },
-        uFresnelFactor: { value: 5.0 },
+        uFresnelFactor: { value: 8.0 },
       },
       fragmentShader,
       vertexShader,
@@ -67,7 +71,7 @@ export const ZennlessZoneSphere = ({
 
   return (
     <mesh ref={zennlessZoneSphereRef} material={material}>
-      <sphereGeometry args={[sphereRadius, 48, 48]} />
+      <sphereGeometry args={[sphereRadius, 100, 100]} />
     </mesh>
   )
 }

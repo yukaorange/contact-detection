@@ -1,4 +1,4 @@
-// import { OrbitControls } from '@react-three/drei'
+import { OrbitControls } from '@react-three/drei'
 // import * as THREE from 'three'
 // import { useControls } from 'leva'
 
@@ -9,7 +9,20 @@ export const Experience = (): JSX.Element => {
   return (
     <>
       <color attach="background" args={['#000000']} />
-      {/* <OrbitControls /> */}
+      <OrbitControls
+        // 垂直回転の制限（ラジアン単位）
+        minPolarAngle={Math.PI / 8}
+        maxPolarAngle={Math.PI / 2.5}
+        // 水平回転の制限（ラジアン単位）
+        minAzimuthAngle={-Math.PI / 2}
+        maxAzimuthAngle={Math.PI / 2}
+        // ズームの制限
+        minDistance={5} // カメラの最小距離
+        maxDistance={10} // カメラの最大距離
+        // オプション: 慣性の追加
+        enableDamping={true}
+        dampingFactor={0.01}
+      />
       <Scene />
     </>
   )

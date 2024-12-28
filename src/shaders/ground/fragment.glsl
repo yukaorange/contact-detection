@@ -1,16 +1,29 @@
 uniform float uTime;
+uniform float uRenderContactDitection;
 uniform float uGridItteration;
 
 varying vec2 vUv;
 
-#include ../utils/grid.glsl
-
 void main() {
-  vec4 gridColor = vec4(createGrid(vUv, vec2(uGridItteration)), 1.0);
+  vec2 uv = vUv;
 
-  vec3 color = gridColor.rgb;
+  vec3 color;
+  //------- チェッカーボード
+  float CHECKER_SIZE = 16.0;
+  vec2 checkerCoord = floor(CHECKER_SIZE * uv);
 
-  color = vec3(0.02, 0.0, 1.0);
+  float checkerPattern = mod(checkerCoord.x + checkerCoord.y, 2.0);
+
+  checkerPattern += 0.5;//暗い部分を明るくする
+  checkerPattern *= 0.1;//そこからさらに全体的に暗くする
+
+  vec3 checkerColor = vec3(checkerPattern);
+
+  color = checkerColor;
+
+  if(uRenderContactDitection == 1.0) {
+    color = vec3(0.0);
+  }
 
   gl_FragColor = vec4(color, 1.0);
 

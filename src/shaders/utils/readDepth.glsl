@@ -11,5 +11,9 @@ float readDepth(sampler2D depthSampler, vec2 coord) {
 
   float viewZ = perspectiveDepthToViewZ(fragCoordZ, cameraNear, cameraFar);//cameraNear と cameraFar はuniformsで定義している（インポート先で参照できる）
 
-  return viewZToOrthographicDepth(viewZ, cameraNear, cameraFar);
+  float depth = viewZToOrthographicDepth(viewZ, cameraNear, cameraFar);
+
+  depth = clamp(depth, 0.0, 1.0);
+
+  return depth;
 }
