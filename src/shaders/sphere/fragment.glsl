@@ -44,7 +44,7 @@ void main() {
   float contactAmount = depth - normalizedDistance;
 
   //接触量を最大値にはじく閾値
-  float contactDetectEdge = 0.03;
+  float contactDetectEdge = 0.018;
 
   //閾値を使った値のスムージング
   float contactDiffuseValue = smoothstep(0.0, contactDetectEdge, contactAmount);
@@ -58,8 +58,10 @@ void main() {
   vec3 testDistanceColor = vec3(distanceFromContact);
   vec3 contactColor = vec3(1.0 - contactDiffuseValue);
   vec3 testContactColor = vec3(contactAmount);
-  vec3 distanceFromContactColor = vec3(1.0 - distanceFromContact) * uContactIntensity;
+
   vec3 fresnelColor = vec3(fresnelValue);
+
+  vec3 distanceFromContactColor = vec3(1.0 - distanceFromContact) * uContactIntensity ;
 
   vec3 test;
   // test = depthColor;

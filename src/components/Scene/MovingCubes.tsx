@@ -41,7 +41,7 @@ export const MovingCubes = ({
 
     if (movingCubeRef.current) {
       movingCubeRef.current.position.x =
-        Math.sin(clock.getElapsedTime()) * 0.5 + 1.5
+        Math.sin(clock.getElapsedTime()) * 1 + 1.5
     }
   })
 
