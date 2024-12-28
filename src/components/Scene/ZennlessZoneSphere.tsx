@@ -7,12 +7,14 @@ import vertexShader from '@/shaders/sphere/vertex.glsl'
 interface ZennlessZoneSphereProps {
   zennlessZoneSphereRef: React.MutableRefObject<THREE.Mesh | null>
   depthTexture: THREE.DepthTexture | null
+  backgroundTexture: THREE.Texture | null
   sphereRadius: number
 }
 
 export const ZennlessZoneSphere = ({
   zennlessZoneSphereRef,
   depthTexture,
+  backgroundTexture,
   sphereRadius,
 }: ZennlessZoneSphereProps) => {
   /**
@@ -24,6 +26,7 @@ export const ZennlessZoneSphere = ({
     const shaderMaterial = new THREE.ShaderMaterial({
       uniforms: {
         tDepth: { value: null },
+        tBackground: { value: backgroundTexture },
         cameraNear: { value: 0 },
         cameraFar: { value: 0 },
         /**
@@ -38,11 +41,16 @@ export const ZennlessZoneSphere = ({
         uContactIntensity: { value: 0 },
         uHasContact: { value: 0 },
         uTime: { value: 0 },
+        uRenderContactDitection: {
+          value: 0,
+        },
+        uFresnelFactor: { value: 5.0 },
       },
       fragmentShader,
       vertexShader,
       transparent: true,
       side: THREE.DoubleSide,
+      // wireframe: true,
     })
     return shaderMaterial
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,13 +60,14 @@ export const ZennlessZoneSphere = ({
     if (!material || !depthTexture) return
 
     material.uniforms.tDepth.value = depthTexture
+    material.uniforms.tBackground.value = backgroundTexture
     material.uniforms.cameraNear.value = camera.near
     material.uniforms.cameraFar.value = camera.far
-  }, [material, depthTexture, camera])
+  }, [material, depthTexture, backgroundTexture, camera])
 
   return (
     <mesh ref={zennlessZoneSphereRef} material={material}>
-      <sphereGeometry args={[sphereRadius, 32, 32]} />
+      <sphereGeometry args={[sphereRadius, 48, 48]} />
     </mesh>
   )
 }

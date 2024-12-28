@@ -1,6 +1,8 @@
 varying float vCamaraDistance;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
+varying vec3 vEyeVector;
+varying vec3 vWorldNormal;
 
 void main() {
   vUv = uv;
@@ -9,10 +11,15 @@ void main() {
 
   vec4 viewPosition = viewMatrix * worldPosition;
 
-  vec3 worldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
-
-  vCamaraDistance = -viewPosition.z;
+  //ワールド座標系における法線
+  vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
+  //ワールド座標系における位置
   vWorldPosition = worldPosition.xyz;
+  //ワールド座標系におけるカメラの方向
+  vEyeVector = normalize(worldPosition.xyz - cameraPosition);
+
+  //ビュー座標系におけるカメラからの距離
+  vCamaraDistance = -viewPosition.z;
 
   gl_Position = projectionMatrix * viewPosition;
 }

@@ -6,8 +6,10 @@ import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass'
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass'
 import { SMAAPass, ShaderPass } from 'three/examples/jsm/Addons.js'
 import { CheckDepthPassConfig } from './PostProcess/CheckDepthPassConfig'
+import { ContactDitectionPassConfig } from './PostProcess/ContactDitectionPassConfig'
 
 import { useEffect } from 'react'
 
@@ -21,7 +23,9 @@ export const Scene = () => {
   const [composer, setComposer] = useState<EffectComposer | null>(null)
   //depthRenderTargetは使わないが、dispose()するためにuseStateで保持
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [depthRenderTarget, setDepthRenderTarget] =
+  const [depthAndBackgroundRenderTarget, setDepthAndBackgroundRenderTarget] =
+    useState<THREE.WebGLRenderTarget | null>(null)
+  const [contactDitectionRenderTarget, setContactDitectionRenderTarget] =
     useState<THREE.WebGLRenderTarget | null>(null)
 
   /**
@@ -29,13 +33,21 @@ export const Scene = () => {
    */
   const zennlessZoneSphereRef = useRef<THREE.Mesh>(null)
   const movingCubeRef = useRef<THREE.Group>(null)
+  const cubeRef = useRef<THREE.Mesh>(null)
+  const floatingCylinerRef = useRef<THREE.Mesh>(null)
   const collisitonRef = useRef<THREE.Mesh>(null)
+  const groundRef = useRef<THREE.Mesh>(null)
   /**
    * ２種類の球体の半径を設定
    */
+  //空間対角線(Space diagonal)を求める関数。衝突する球体の半径として使用
+  const getCubeDiagonal = (length: number): number => {
+    return length * Math.sqrt(3)
+  }
+
   const sphereRadius = 2
-  const cubeSize = 1
-  const collisionSphereRadius = Math.sqrt(5) / 2 // 立方体の対角線の半分の長さ
+  const cubeSize = 0.75
+  const collisionSphereRadius = getCubeDiagonal(cubeSize) / 2 // 空間対角線を半径/2として使用=>空間対角線が直径となる。
 
   /**
    * three.jsの各オブジェクトを取得
@@ -66,35 +78,67 @@ export const Scene = () => {
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 
-    console.log('init Scene')
+    console.log('init Scene @ useEffect')
 
-    //深度を取得するための下準備
-    const depthRenderTarget = new THREE.WebGLRenderTarget(width, height, {
-      //LinearFilterは、テクスチャを縮小する際に、近くのピクセルの色を平均化して滑らかな縮小を行う。
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
-      format: THREE.RGBAFormat,
-      type: THREE.FloatType,
-      depthBuffer: true,
-      depthTexture: new THREE.DepthTexture(width, height, THREE.FloatType),
-    })
+    //-------深度を取得するための下準備
+    const depthAndBackgroundRenderTarget = new THREE.WebGLRenderTarget(
+      width,
+      height,
+      {
+        //LinearFilterは、テクスチャを縮小する際に、近くのピクセルの色を平均化して滑らかな縮小を行う。
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        depthBuffer: true,
+        depthTexture: new THREE.DepthTexture(width, height, THREE.FloatType),
+      },
+    )
 
-    setDepthRenderTarget(depthRenderTarget)
+    setDepthAndBackgroundRenderTarget(depthAndBackgroundRenderTarget)
+
+    //------- 接触判定シーンをレンダリングするための下準備
+    const contactDitectionRenderTarget = new THREE.WebGLRenderTarget(
+      width,
+      height,
+      {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        colorSpace: THREE.SRGBColorSpace,
+      },
+    )
+
+    setContactDitectionRenderTarget(contactDitectionRenderTarget)
+
+    //------- エフェクトコンポーザーの設定
 
     //エフェクトコンポーザーの初期化
     const effectComposer = new EffectComposer(gl)
 
-    //シーンをレンダリング
+    //レンダリングしたシーンを出力できるパス
     const renderPass = new RenderPass(scene, camera)
 
-    //深度が取れているかの確認用
+    //深度が取れているかの確認用パス（※デバッグ用）
     const CheckDepthPass = new ShaderPass(CheckDepthPassConfig)
     /**
      * 深度パスのuniformsに、深度テクスチャを設定する
      */
-    CheckDepthPass.uniforms.tDepth.value = depthRenderTarget.depthTexture
+    CheckDepthPass.uniforms.tDepth.value =
+      depthAndBackgroundRenderTarget.depthTexture
     CheckDepthPass.uniforms.cameraNear.value = camera.near
     CheckDepthPass.uniforms.cameraFar.value = camera.far
+
+    //接触判定のみをレンダリングするためのパス（エフェクトを適用する）
+    const contactDitectionPass = new ShaderPass(ContactDitectionPassConfig)
+
+    contactDitectionPass.uniforms.tContactDitectionDiffuse.value =
+      contactDitectionRenderTarget.texture
+
+    // ブルームエフェクト
+    // const unrealBloomPass = new UnrealBloomPass(
+    //   new THREE.Vector2(width, height),
+    //   0.35, //strength
+    //   0.0, //radius
+    //   0.0, //threshold
+    // )
 
     // 低負荷ジャギー軽減処理
     const smaaPass = new SMAAPass(width, height)
@@ -111,22 +155,25 @@ export const Scene = () => {
 
     effectComposer.addPass(renderPass)
     //深度を確認するときだけ有効にする
-    // effectComposer.addPass(CheckDepthPass)
+    effectComposer.addPass(CheckDepthPass)
+    // effectComposer.addPass(contactDitectionPass)
+    // effectComposer.addPass(unrealBloomPass)
     effectComposer.addPass(smaaPass)
 
     setComposer(effectComposer)
 
+    //------- リサイズイベントの登録とアンマウント時に解除
     window.addEventListener('resize', handleResize)
     return () => {
       window.removeEventListener('resize', handleResize)
       if (composer) {
         composer.dispose()
       }
-      if (depthRenderTarget) {
-        depthRenderTarget.dispose()
+      if (depthAndBackgroundRenderTarget) {
+        depthAndBackgroundRenderTarget.dispose()
       }
       setComposer(null)
-      setDepthRenderTarget(null)
+      setDepthAndBackgroundRenderTarget(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gl, scene, camera])
@@ -143,15 +190,12 @@ export const Scene = () => {
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = false
       }
-      if (collisitonRef.current) {
-        collisitonRef.current.visible = false
-      }
 
       /**
        * 深度バッファに深度値を焼き付ける
        */
-      if (depthRenderTarget && gl && scene && camera) {
-        gl.setRenderTarget(depthRenderTarget)
+      if (depthAndBackgroundRenderTarget && gl && scene && camera) {
+        gl.setRenderTarget(depthAndBackgroundRenderTarget)
         gl.render(scene, camera)
         gl.setRenderTarget(null)
       }
@@ -184,27 +228,36 @@ export const Scene = () => {
 
         // 接触が発生している場合のみ接触点を計算
         if (distance < totalRadius) {
+          // 完全にめり込んだ状態（内側に収まった状態）をチェック
+          if (distance <= Math.abs(sphereRadius - collisionSphereRadius)) {
+            // 完全にめり込んだ状態では接触なし
+            shaderMaterial.uniforms.uHasContact.value = 0.0
+          } else {
+            //めり込みの進行度を計算
+            const penetrationProgress =
+              (totalRadius - distance) /
+              (totalRadius - Math.abs(sphereRadius - collisionSphereRadius))
+
+            // 0.5を頂点とする放物線状の接触量を計算
+            // penetrationProgressが0.5の時に最大値1.0になり、
+            // 0または1に近づくほど0に近づく
+            const normalizedPenetrationDepth =
+              1.0 - Math.abs(penetrationProgress - 0.5) * 2.0
+
+            // 接触点を計算（考え方はsubの時と同様）
+            const contactPoint = sphereCenter
+              .clone()
+              .add(direction.multiplyScalar(sphereRadius))
+
+            shaderMaterial.uniforms.contactPoint.value = contactPoint
+            shaderMaterial.uniforms.uContactIntensity.value =
+              normalizedPenetrationDepth
+            shaderMaterial.uniforms.uHasContact.value = 1.0
+
+            // デバッグ用
+            // console.log('接触点:', contactPoint)
+          }
           //接触量
-          const penetrationDepth = totalRadius - distance
-
-          //接触量を正規化
-          const normalizedPenetrationDepth = Math.min(
-            penetrationDepth / totalRadius,
-            1.0,
-          )
-
-          // 接触点を計算（考え方はsubの時と同様）
-          const contactPoint = sphereCenter
-            .clone()
-            .add(direction.multiplyScalar(sphereRadius))
-
-          shaderMaterial.uniforms.contactPoint.value = contactPoint
-          shaderMaterial.uniforms.uContactIntensity.value =
-            normalizedPenetrationDepth
-          shaderMaterial.uniforms.uHasContact.value = 1.0
-
-          // デバッグ用
-          console.log('接触点:', contactPoint)
         } else {
           // 接触していない場合
           shaderMaterial.uniforms.uHasContact.value = 0.0
@@ -232,11 +285,55 @@ export const Scene = () => {
       /**
        * 中央の球体を可視にする
        */
-      // if (collisitonRef.current) {
-      //   collisitonRef.current.visible = true
-      // }
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = true
+      }
+      /**
+       * 接触判定バッファに接触部分の色を焼き付ける
+       */
+      // 各オブジェクトを黒塗りに変換
+      if (zennlessZoneSphereRef.current) {
+        const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
+          .material as THREE.ShaderMaterial
+
+        zennlessZoneSphereMaterial.uniforms.uRenderContactDitection.value = 1
+      }
+      if (cubeRef.current) {
+        const cubeShaderMaterial = cubeRef.current
+          .material as THREE.ShaderMaterial
+
+        cubeShaderMaterial.uniforms.uRenderContactDitection.value = 1
+      }
+      if (floatingCylinerRef.current) {
+        const floatingCylinderShaderMaterial = floatingCylinerRef.current
+          .material as THREE.ShaderMaterial
+
+        floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 1
+      }
+
+      // if (contactDitectionRenderTarget && gl && scene && camera) {
+      //   gl.setRenderTarget(contactDitectionRenderTarget)
+      //   gl.render(scene, camera)
+      //   gl.setRenderTarget(null)
+      // }
+      //各オブジェクトの黒塗りを解除
+      if (zennlessZoneSphereRef.current) {
+        const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
+          .material as THREE.ShaderMaterial
+
+        zennlessZoneSphereMaterial.uniforms.uRenderContactDitection.value = 0
+      }
+      if (cubeRef.current) {
+        const cubeShaderMaterial = cubeRef.current
+          .material as THREE.ShaderMaterial
+
+        cubeShaderMaterial.uniforms.uRenderContactDitection.value = 0
+      }
+      if (floatingCylinerRef.current) {
+        const floatingCylinderShaderMaterial = floatingCylinerRef.current
+          .material as THREE.ShaderMaterial
+
+        floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 0
       }
 
       /**
@@ -256,21 +353,23 @@ export const Scene = () => {
       {/* 半透明の球体 */}
       <ZennlessZoneSphere
         zennlessZoneSphereRef={zennlessZoneSphereRef}
-        depthTexture={depthRenderTarget?.depthTexture || null}
+        depthTexture={depthAndBackgroundRenderTarget?.depthTexture || null}
+        backgroundTexture={depthAndBackgroundRenderTarget?.texture || null}
         sphereRadius={sphereRadius}
       />
       {/* 固定された円柱 */}
-      <FloatingCylinders />
+      <FloatingCylinders floatingCylinerRef={floatingCylinerRef} />
       <DragControls axisLock="y">
         {/* 動く立方体(接触判定は球体が担う) */}
         <MovingCubes
           movingCubeRef={movingCubeRef}
           collisionSphereRef={collisitonRef}
+          cubeRef={cubeRef}
           cubeSize={cubeSize}
           sphereRadius={collisionSphereRadius}
         />
       </DragControls>
-      <Ground />
+      <Ground groundRef={groundRef} />
     </>
   )
 }

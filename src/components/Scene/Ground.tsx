@@ -1,11 +1,33 @@
-import React, { useRef } from 'react'
+import React, { useMemo } from 'react'
 
 import vertexshader from '@/shaders/ground/vertex.glsl'
 import fragmentShader from '@/shaders/ground/fragment.glsl'
 import * as THREE from 'three'
+import { useFrame } from '@react-three/fiber'
 
-export const Ground = () => {
-  const groundRef = useRef<THREE.Mesh>(null)
+interface GroundProps {
+  groundRef: React.MutableRefObject<THREE.Mesh | null>
+}
+
+export const Ground = ({ groundRef }: GroundProps) => {
+  const uniforms = useMemo(() => {
+    return {
+      uTime: {
+        value: 0,
+      },
+      uGridItteration: {
+        value: 48,
+      },
+    }
+  }, [])
+
+  useFrame((state) => {
+    const { clock } = state
+
+    const shaderMaterial = groundRef.current?.material as THREE.ShaderMaterial
+
+    shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
+  })
 
   return (
     <mesh ref={groundRef} rotation={[-Math.PI / 2, 0, 0]}>
@@ -13,6 +35,7 @@ export const Ground = () => {
       <shaderMaterial
         vertexShader={vertexshader}
         fragmentShader={fragmentShader}
+        uniforms={uniforms}
       />
     </mesh>
   )

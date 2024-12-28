@@ -7,7 +7,6 @@ export const CheckDepthPassConfig = {
     tDepth: { value: null },
     cameraNear: { value: 0 },
     cameraFar: { value: 0 }, //far彩度の距離が遠すぎると、深度が極端に大きくなり、扱えないので、適当な値に設定する。
-    
   },
   vertexShader: vertexShader,
   fragmentShader: fragmentShader,
