@@ -9,7 +9,7 @@ export const ContactDitectionPassConfig = {
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(0, 0) },
     uAspect: { value: 0 },
-    uGridItteration: { value: 48 },
+    uGridItteration: { value: 40 },
     uBlurStrength: { value: 4 },
   },
   vertexShader: vertexShader,

@@ -68,10 +68,10 @@ void main() {
 
   float contactDetectEdgeForGrid;//postprocessのシーン用
   if(vWorldPosition.y > 0.1) {
-    contactDetectEdgeForGrid = 0.014;
+    contactDetectEdgeForGrid = 0.018;
   } else {
     //地面すれすれは色範囲狭く
-    contactDetectEdgeForGrid = 0.009;
+    contactDetectEdgeForGrid = 0.010;
   }
 
   //閾値を使った値のスムージング
