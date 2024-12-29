@@ -1,11 +1,19 @@
 import { OrbitControls } from '@react-three/drei'
+import { useThree } from '@react-three/fiber'
 // import * as THREE from 'three'
 // import { useControls } from 'leva'
-
 // import { useRef } from 'react'
 import { Scene } from './Scene/Scene'
 
 export const Experience = (): JSX.Element => {
+  const { camera } = useThree()
+
+  if (window.innerWidth < 768) {
+    camera.position.set(2, 2, 12)
+  } else {
+    camera.position.set(2, 2, 8)
+  }
+
   return (
     <>
       <color attach="background" args={['#000000']} />

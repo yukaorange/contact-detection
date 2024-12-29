@@ -10,7 +10,7 @@ vec3 generateRainbow(vec2 pos, float time, float noiseValue) {
   // noiseValue = pow(noiseValue, 10.1);
 
   // 色の範囲を選択
-  float hue = noiseValue * 0.53 + 0.47;  
+  float hue = noiseValue * 0.64 + 0.36;  
 
   // 彩度
   float saturation = 0.75;                     

@@ -33,8 +33,12 @@ export const FloatingCylinders = ({
   })
 
   return (
-    <mesh ref={floatingCylinerRef} position={[-0.5, 0.5, 1.5]}>
-      <cylinderGeometry args={[0.5, 0.5, 1, 32, 32]} />
+    <mesh
+      ref={floatingCylinerRef}
+      position={[-0.5, 1.0, 1.5]}
+      rotation={[Math.PI / 4, Math.PI / 4, 0]}
+    >
+      <cylinderGeometry args={[0.25, 0.25, 1, 32, 32]} />
       <shaderMaterial
         vertexShader={vertexshader}
         fragmentShader={fragmentShader}

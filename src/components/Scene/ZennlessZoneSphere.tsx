@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect } from 'react'
+import React, { useMemo, useEffect, useCallback } from 'react'
 import * as THREE from 'three'
 import fragmentShader from '@/shaders/sphere/fragment.glsl'
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import vertexShader from '@/shaders/sphere/vertex.glsl'
 
 interface ZennlessZoneSphereProps {
@@ -21,6 +21,26 @@ export const ZennlessZoneSphere = ({
    * three.jsの各オブジェクトを取得
    */
   const { camera } = useThree()
+
+  const handleResize = useCallback(() => {
+    const dpr = Math.min(window.devicePixelRatio, 2)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
+    if (zennlessZoneSphereRef.current) {
+      const shaderMaterial = zennlessZoneSphereRef.current
+        .material as THREE.ShaderMaterial
+      shaderMaterial.uniforms.uResolution.value = new THREE.Vector2(
+        width,
+        height,
+      )
+    }
+  }, [zennlessZoneSphereRef])
+
+  useEffect(() => {
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [handleResize])
 
   const material = useMemo(() => {
     const dpr = Math.min(window.devicePixelRatio, 2)
@@ -48,10 +68,10 @@ export const ZennlessZoneSphere = ({
         uRenderContactDitection: {
           value: 0,
         },
-        uFresnelFactor: { value: 5.6 },
-        uWaveRadius: { value: 1.0 },
-        uWaveFrequency: { value: 14.0 },
-        uWaveAmplitude: { value: 0.16 },
+        uFresnelFactor: { value: 10.0 }, //フレネルの絞り具合
+        uWaveRadius: { value: 1.0 }, //波の半径
+        uWaveFrequency: { value: 12.0 }, //波の周波数
+        uWaveAmplitude: { value: 0.24 }, //波の高さ
       },
       fragmentShader,
       vertexShader,
@@ -72,9 +92,23 @@ export const ZennlessZoneSphere = ({
     material.uniforms.cameraFar.value = camera.far
   }, [material, depthTexture, backgroundTexture, camera])
 
+  useFrame((state) => {
+    const { clock } = state
+
+    const shaderMaterial = zennlessZoneSphereRef.current
+      ?.material as THREE.ShaderMaterial
+
+    shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
+
+    if (zennlessZoneSphereRef.current) {
+      zennlessZoneSphereRef.current.position.y =
+        Math.sin(clock.getElapsedTime()) * 0.08 + 0.5
+    }
+  })
+
   return (
     <mesh ref={zennlessZoneSphereRef} material={material}>
-      <sphereGeometry args={[sphereRadius, 100, 100]} />
+      <sphereGeometry args={[sphereRadius, 80, 80]} />
     </mesh>
   )
 }

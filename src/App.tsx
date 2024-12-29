@@ -5,7 +5,7 @@ import { Loader } from '@/components/Loader'
 import { Experience } from '@/components/Experience'
 import { Sns } from '@/components/Sns'
 import { MenuButton } from '@/components/MenuButton'
-import { Leva, useControls } from 'leva'
+import { Leva } from 'leva'
 import { Suspense } from 'react'
 
 const App = () => {

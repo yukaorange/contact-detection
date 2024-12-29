@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useRef } from 'react'
 import { Ground } from './Ground'
 import { ZennlessZoneSphere } from './ZennlessZoneSphere'
 import { MovingCubes } from './MovingCubes'
@@ -13,20 +13,19 @@ import { ContactDitectionPassConfig } from './PostProcess/ContactDitectionPassCo
 
 import { useEffect } from 'react'
 
-import { DragControls } from '@react-three/drei'
+// import { DragControls } from '@react-three/drei'
 import { FloatingCylinders } from './FloatingCylinders'
 
 export const Scene = () => {
   /**
    * コンポーザーを保持
    */
-  const [composer, setComposer] = useState<EffectComposer | null>(null)
+  const composerRef = useRef<EffectComposer | null>(null)
   //depthRenderTargetは使わないが、dispose()するためにuseStateで保持
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [depthAndBackgroundRenderTarget, setDepthAndBackgroundRenderTarget] =
-    useState<THREE.WebGLRenderTarget | null>(null)
-  const [contactDitectionRenderTarget, setContactDitectionRenderTarget] =
-    useState<THREE.WebGLRenderTarget | null>(null)
+  const depthAndBackgroundRenderTargetRef =
+    useRef<THREE.WebGLRenderTarget | null>(null)
+  const contactDitectionRenderTargetRef =
+    useRef<THREE.WebGLRenderTarget | null>(null)
 
   /**
    * シーンに配置する各メッシュのRefオブジェクトを初期化
@@ -50,7 +49,7 @@ export const Scene = () => {
   const collisionSphereRadius = getCubeDiagonal(cubeSize) / 2 // 空間対角線を半径/2として使用=>空間対角線が直径となる。
 
   /**
-   * three.jsの各オブジェクトを取得
+   * three.jsの各オブジェクトを取得（usThreeの中身は画面リサイズの度にuseStateのような変更が入るので、コンポーネントが再レンダリングされる点に留意）
    */
   const { gl, scene, camera } = useThree()
 
@@ -63,11 +62,14 @@ export const Scene = () => {
     const height = window.innerHeight * dpr
 
     // console.log('resize : ', width, height)
+    if (depthAndBackgroundRenderTargetRef.current) {
+      depthAndBackgroundRenderTargetRef.current.setSize(width, height)
+    }
+    if (contactDitectionRenderTargetRef.current) {
+      contactDitectionRenderTargetRef.current.setSize(width, height)
+    }
 
-    composer?.setSize(width, height)
-
-    // composerは毎フレーム更新されるので、ここの依存配列には入れないでおく。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    composerRef.current?.setSize(width, height)
   }, [])
 
   /**
@@ -97,9 +99,7 @@ export const Scene = () => {
         ),
       },
     )
-
-    setDepthAndBackgroundRenderTarget(depthAndBackgroundRenderTarget)
-
+    depthAndBackgroundRenderTargetRef.current = depthAndBackgroundRenderTarget
     //------- 接触判定シーンをレンダリングするための下準備
     const contactDitectionRenderTarget = new THREE.WebGLRenderTarget(
       width,
@@ -111,8 +111,7 @@ export const Scene = () => {
         colorSpace: THREE.LinearSRGBColorSpace,
       },
     )
-
-    setContactDitectionRenderTarget(contactDitectionRenderTarget)
+    contactDitectionRenderTargetRef.current = contactDitectionRenderTarget
 
     //------- エフェクトコンポーザーの設定
     //エフェクトコンポーザーの初期化
@@ -146,7 +145,7 @@ export const Scene = () => {
     const unrealBloomPass = new UnrealBloomPass(
       new THREE.Vector2(width, height),
       0.36, //strength
-      0.3, //radius
+      0.01, //radius
       0.01, //threshold
     )
 
@@ -170,30 +169,32 @@ export const Scene = () => {
     effectComposer.addPass(unrealBloomPass)
     effectComposer.addPass(smaaPass)
 
-    setComposer(effectComposer)
+    composerRef.current = effectComposer
 
     //------- リサイズイベントの登録とアンマウント時に解除
     window.addEventListener('resize', handleResize)
     return () => {
       window.removeEventListener('resize', handleResize)
-      if (composer) {
-        composer.dispose()
+      if (composerRef.current) {
+        composerRef.current.dispose()
       }
-      if (depthAndBackgroundRenderTarget) {
-        depthAndBackgroundRenderTarget.dispose()
+      if (depthAndBackgroundRenderTargetRef.current) {
+        depthAndBackgroundRenderTargetRef.current.dispose()
       }
-      setComposer(null)
-      setDepthAndBackgroundRenderTarget(null)
+      if (contactDitectionRenderTargetRef.current) {
+        contactDitectionRenderTargetRef.current.dispose()
+      }
+      composerRef.current = null
+      depthAndBackgroundRenderTargetRef.current = null
+      contactDitectionRenderTargetRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gl, scene, camera])
+  }, [gl, scene, camera, handleResize])
 
   /**
    * ループ処理
    */
   useFrame(
-    (state, delta) => {
-      const { clock } = state
+    (_, delta) => {
       /**
        * 中央の球体、接触判定用の球体を不可視にする
        */
@@ -204,8 +205,8 @@ export const Scene = () => {
       /**
        * 深度バッファに深度値を焼き付ける
        */
-      if (depthAndBackgroundRenderTarget && gl && scene && camera) {
-        gl.setRenderTarget(depthAndBackgroundRenderTarget)
+      if (depthAndBackgroundRenderTargetRef.current && gl && scene && camera) {
+        gl.setRenderTarget(depthAndBackgroundRenderTargetRef.current)
         gl.render(scene, camera)
         gl.setRenderTarget(null)
       }
@@ -217,9 +218,6 @@ export const Scene = () => {
         //マテリアルの準備
         const shaderMaterial = zennlessZoneSphereRef.current
           .material as THREE.ShaderMaterial
-
-        //タイム更新
-        shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
 
         //中央の球体のワールド座標を取得
         const sphereCenter = new THREE.Vector3()
@@ -298,8 +296,11 @@ export const Scene = () => {
       if (zennlessZoneSphereRef.current) {
         zennlessZoneSphereRef.current.visible = true
       }
+
       /**
-       * 接触判定バッファに接触部分の色を焼き付ける
+       * 接触判定バッファに接触部分の色を焼き付ける。
+       * そのために、各オブジェクトを黒塗りに変換してレンダリングし、接触部分の色を取得する必要がある。
+       * 結果的に接触判定バッファには、接触判定部分が白くなったもののみを焼き付けることができる。（単に接触判定を見たいのなら、shpereに色を出せば済むが、ここでは接触判定部位のみをブラーで広げた絵作りをしたため、こうする。）
        */
       // 各オブジェクトを黒塗りに変換
       if (zennlessZoneSphereRef.current) {
@@ -327,8 +328,8 @@ export const Scene = () => {
         groundShaderMaterial.uniforms.uRenderContactDitection.value = 1
       }
 
-      if (contactDitectionRenderTarget && gl && scene && camera) {
-        gl.setRenderTarget(contactDitectionRenderTarget)
+      if (contactDitectionRenderTargetRef.current && gl && scene && camera) {
+        gl.setRenderTarget(contactDitectionRenderTargetRef.current)
         gl.render(scene, camera)
         gl.setRenderTarget(null)
       }
@@ -361,7 +362,7 @@ export const Scene = () => {
       /**
        * エフェクトコンポーザーのレンダリング
        */
-      composer?.render(delta)
+      composerRef.current?.render(delta)
     },
     /**
      * EffectComposerは、シーンが更新された後、画面に実際に描画される前にレンダーパスを実行する必要がある。useFrameの第二引数を他のコンポーネントよりも大きな数字（つまり後回し）に設定することで、React Three Fiberがシーンを更新した後、かつ最終的な描画呼び出しの前にEffectComposerがレンダリングされることを保証できる。
@@ -375,8 +376,12 @@ export const Scene = () => {
       {/* 半透明の球体 */}
       <ZennlessZoneSphere
         zennlessZoneSphereRef={zennlessZoneSphereRef}
-        depthTexture={depthAndBackgroundRenderTarget?.depthTexture || null}
-        backgroundTexture={depthAndBackgroundRenderTarget?.texture || null}
+        depthTexture={
+          depthAndBackgroundRenderTargetRef.current?.depthTexture || null
+        }
+        backgroundTexture={
+          depthAndBackgroundRenderTargetRef.current?.texture || null
+        }
         sphereRadius={sphereRadius}
       />
       {/* 固定された円柱 */}

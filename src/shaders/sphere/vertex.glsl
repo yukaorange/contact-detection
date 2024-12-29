@@ -1,4 +1,5 @@
 varying float vCameraDistance;
+varying float vWave;
 varying vec2 vUv;
 varying vec3 vWorldPosition;
 varying vec3 vEyeVector;
@@ -42,6 +43,8 @@ void main() {
   }
 
   worldPosition.xyz += worldNormal * wave;
+
+  vWave = wave;
 
   //------ ビュー座標
   vec4 viewPosition = viewMatrix * worldPosition;

@@ -5,7 +5,7 @@ varying vec2 vUv;
 
 void main() {
   vec3 color;
-  color = vec3(0.9, 0.13, 1.0);
+  color = vec3(0.33);
 
   if(uRenderContactDitection == 1.0) {
     color = vec3(0.0, 0.0, 0.0);
