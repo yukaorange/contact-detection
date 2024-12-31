@@ -333,6 +333,7 @@ export const Scene = () => {
         gl.render(scene, camera)
         gl.setRenderTarget(null)
       }
+      
       // 各オブジェクトの黒塗りを解除
       if (zennlessZoneSphereRef.current) {
         const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current

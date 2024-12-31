@@ -71,7 +71,7 @@ void main() {
     contactDetectEdgeForGrid = 0.018;
   } else {
     //地面すれすれは色範囲狭く
-    contactDetectEdgeForGrid = 0.010;
+    contactDetectEdgeForGrid = 0.004;
   }
 
   //閾値を使った値のスムージング
