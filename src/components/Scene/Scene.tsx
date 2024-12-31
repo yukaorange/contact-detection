@@ -199,6 +199,7 @@ export const Scene = () => {
     effectComposer.addPass(renderPass)
     //深度を確認するときだけ有効にする
     // effectComposer.addPass(CheckDepthPass)
+    //接触判定の色を付与（板ポリではなく、オブジェクトで使いたいから、いまはコメントアウト）
     effectComposer.addPass(contactDitectionPass)
     effectComposer.addPass(unrealBloomPass)
     effectComposer.addPass(smaaPass)
@@ -233,9 +234,6 @@ export const Scene = () => {
    */
   useFrame(
     (_, delta) => {
-      // バッファの交換を行う
-      writeBufferIndexRef.current = writeBufferIndexRef.current === 0 ? 1 : 0
-
       // 書き込み用と読み込み用のバッファを取得
       const writeTarget =
         writeBufferIndexRef.current === 0
@@ -349,6 +347,33 @@ export const Scene = () => {
       }
 
       /**
+       *各オブジェクトに接触判定領域のテクスチャを割り当て
+       */
+      //zennlessZoneSphereRefは内部で接触判定を作っているので、ここでの割り当ては不要
+      if (floatingCylinerRef.current) {
+        const floatingCylinderShaderMaterial = floatingCylinerRef.current
+          .material as THREE.ShaderMaterial
+
+        floatingCylinderShaderMaterial.uniforms.tContactDitectionTexture.value =
+          readTarget?.texture
+      }
+      // if (cubeRef.current) {
+      //   const cubeShaderMaterial = cubeRef.current
+      //     .material as THREE.ShaderMaterial
+
+      //   cubeShaderMaterial.uniforms.tContactDitectionTexture.value =
+      //     readTarget?.texture
+      // }
+
+      // if (groundRef.current) {
+      //   const groundShaderMaterial = groundRef.current
+      //     .material as THREE.ShaderMaterial
+
+      //   groundShaderMaterial.uniforms.tContactDitectionTexture.value =
+      //     readTarget?.texture
+      // }
+
+      /**
        * 接触判定バッファに接触部分の色を焼き付ける。
        * そのために、各オブジェクトを黒塗りに変換してレンダリングし、接触部分の色を取得する必要がある。
        * 結果的に接触判定バッファには、接触判定部分が白くなったもののみを焼き付けることができる。（単に接触判定を見たいのなら、shpereに色を出せば済むが、ここでは接触判定部位のみをブラーで広げた絵作りをしたため、こうする。）
@@ -411,45 +436,13 @@ export const Scene = () => {
         groundShaderMaterial.uniforms.uRenderContactDitection.value = 0
       }
 
-      // 接触判定パスのテクスチャを交換
-      if (contactDitectionPassRef.current) {
-        contactDitectionPassRef.current.uniforms.tContactDitectionDiffuse.value =
-          readTarget?.texture
-      }
-
-      /**
-       *各オブジェクトに接触判定領域のテクスチャを割り当て
-       */
-      //zennlessZoneSphereRefは内部で接触判定を作っているので、ここでの割り当ては不要
-      // if (cubeRef.current) {
-      //   const cubeShaderMaterial = cubeRef.current
-      //     .material as THREE.ShaderMaterial
-
-      //   cubeShaderMaterial.uniforms.tContactDitectionTexture.value =
-      //     readTarget?.texture
-      // }
-
-      if (floatingCylinerRef.current) {
-        const floatingCylinderShaderMaterial = floatingCylinerRef.current
-          .material as THREE.ShaderMaterial
-
-        floatingCylinderShaderMaterial.uniforms.tContactDitectionTexture.value =
-          readTarget?.texture
-      }
-
-      // if (groundRef.current) {
-      //   const groundShaderMaterial = groundRef.current
-      //     .material as THREE.ShaderMaterial
-
-      //   groundShaderMaterial.uniforms.tContactDitectionTexture.value =
-      //     readTarget?.texture
-      // }
-
       /**
        * エフェクトコンポーザーのレンダリング
        */
-      gl.setRenderTarget(null)
       composerRef.current?.render(delta)
+
+      // バッファの交換を行う
+      writeBufferIndexRef.current = writeBufferIndexRef.current === 0 ? 1 : 0
     },
     /**
      * EffectComposerは、シーンが更新された後、画面に実際に描画される前にレンダーパスを実行する必要がある。useFrameの第二引数を他のコンポーネントよりも大きな数字（つまり後回し）に設定することで、React Three Fiberがシーンを更新した後、かつ最終的な描画呼び出しの前にEffectComposerがレンダリングされることを保証できる。
