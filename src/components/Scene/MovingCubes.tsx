@@ -29,6 +29,7 @@ export const MovingCubes = ({
       uRenderContactDitection: {
         value: 0,
       },
+      tContactDitectionTexture: { value: null },
     }
   }, [])
 
