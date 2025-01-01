@@ -100,62 +100,92 @@ export const Scene = () => {
   ]
   //cube
   const cubeConfigs = [
+    //表面を周遊
     {
-      position: [1.0, 1, 0] as [number, number, number],
+      position: [0, 1.0, 0] as [number, number, number],
       size: 0.75,
       animation: {
         type: 'circular' as const,
         enabled: true,
         plane: 'xz' as const,
-        radius: 1.5,
-        speed: 0.5,
-        phase: ((Math.PI * 2) / 4) * 1,
+        radius: 2.0,
+        speed: 0.75,
+        phase: 0,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+      },
+    },
+    {
+      position: [1.0, 1.0, 0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'circular' as const,
+        enabled: true,
+        plane: 'xz' as const,
+        radius: 2.0,
+        speed: 0.75,
+        phase: Math.PI,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+      },
+    },
+    //ピストン運動
+    {
+      position: [0.0, 1, 0.0] as [number, number, number],
+      size: 0.5,
+      animation: {
+        type: 'linear' as const,
+        enabled: true,
+        axis: 'z',
+        amplitude: 2.250, // 振幅（移動量）
+        frequency: 0.5, // 周波数（速さ）
+        phase: 0, // 位相（開始位置のオフセット）
+        rotationEnabled: true,
+        rotationSpeed: [0.02, 0.02, 0.0] as [number, number, number],
+      },
+    },
+    {
+      position: [0.0, 1, 0.0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'linear' as const,
+        enabled: true,
+        axis: 'x',
+        amplitude: 2.50, // 振幅（移動量）
+        frequency: 0.75, // 周波数（速さ）
+        phase: 0, // 位相（開始位置のオフセット）
         rotationEnabled: true,
         rotationSpeed: [0.01, 0.01, 0.0] as [number, number, number],
       },
     },
-    {
-      position: [-1, 1.0, 0] as [number, number, number],
-      size: 0.75,
-      animation: {
-        type: 'circular' as const,
-        enabled: true,
-        plane: 'xz' as const,
-        radius: 1.5,
-        speed: 0.5,
-        phase: ((Math.PI * 2) / 4) * 2,
-        rotationEnabled: true,
-        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
-      },
-    },
-    {
-      position: [0.0, 1, 1.0] as [number, number, number],
-      size: 0.75,
-      animation: {
-        type: 'circular' as const,
-        enabled: true,
-        plane: 'xz' as const,
-        radius: 1.5,
-        speed: 0.5,
-        phase: ((Math.PI * 2) / 4) * 3,
-        rotationEnabled: true,
-        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
-      },
-    },
-    {
-      position: [0.0, 1, -1.0] as [number, number, number],
-      size: 0.75,
-      animation: {
-        type: 'circular' as const,
-        enabled: true,
-        plane: 'xz' as const,
-        radius: 1.5,
-        speed: 0.5,
-        phase: ((Math.PI * 2) / 4) * 4,
-        rotationEnabled: true,
-        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
-      },
-    },
+    // {
+    //   position: [0.0, 1, 1.0] as [number, number, number],
+    //   size: 0.5,
+    //   animation: {
+    //     type: 'circular' as const,
+    //     enabled: true,
+    //     plane: 'xz' as const,
+    //     radius: 1.5,
+    //     speed: 0.25,
+    //     phase: ((Math.PI * 2) / 4) * 3,
+    //     rotationEnabled: true,
+    //     rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+    //   },
+    // },
+    // {
+    //   position: [0.0, 1, -1.0] as [number, number, number],
+    //   size: 0.75,
+    //   animation: {
+    //     type: 'circular' as const,
+    //     enabled: true,
+    //     plane: 'xz' as const,
+    //     radius: 1.5,
+    //     speed: 0.75,
+    //     phase: ((Math.PI * 2) / 4) * 4,
+    //     rotationEnabled: true,
+    //     rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+    //   },
+    // },
   ]
 
   /**

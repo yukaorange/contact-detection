@@ -115,7 +115,7 @@ export const ZennlessZoneSphere = ({
 
   return (
     <mesh ref={zennlessZoneSphereRef} material={material}>
-      <sphereGeometry args={[sphereRadius, 80, 80]} />
+      <sphereGeometry args={[sphereRadius, 100, 100]} />
     </mesh>
   )
 }
