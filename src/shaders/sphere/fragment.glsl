@@ -66,12 +66,14 @@ void main() {
   //接触量を最大値にはじく閾値
   float contactDetectEdge = 0.012;
 
-  float contactDetectEdgeForGrid;//postprocessのシーン用
+  //postprocessのシーン用
+  float contactDetectEdgeForGrid;
+
   if(vWorldPosition.y > 0.1) {
     contactDetectEdgeForGrid = 0.018;
   } else {
     //地面すれすれは色範囲狭く
-    contactDetectEdgeForGrid = 0.004;
+    contactDetectEdgeForGrid = 0.018;
   }
 
   //閾値を使った値のスムージング
@@ -81,7 +83,7 @@ void main() {
   //接触判定の色（ベース）
   vec3 contactColor = vec3(1.0 - contactDiffuseValue) * rainbowColor * 0.064;
 
-  vec3 contactColorForGrid = vec3(1.0 - contactDiffuseValueForGrid) * 0.2;
+  vec3 contactColorForGrid = vec3(1.0 - contactDiffuseValueForGrid) ;
 
   //------- 衝突判定の色(今はまだベース職のみ。グリッチ的な加工を施したい)
   //衝突判定
@@ -142,7 +144,7 @@ void main() {
   float voronoiPattern = voronoi(scale * offsetPosition);
 
   //ボノロイパターンを閾値で切り抜く
-  float vonoroiThreshold = 0.9;
+  float vonoroiThreshold = 0.86;
 
   float maskedPattern = voronoiPattern > vonoroiThreshold ? 1.0 : 0.0;
 

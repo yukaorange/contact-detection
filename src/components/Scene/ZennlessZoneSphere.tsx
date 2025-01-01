@@ -23,7 +23,7 @@ export const ZennlessZoneSphere = ({
   const { camera } = useThree()
 
   const handleResize = useCallback(() => {
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 
@@ -43,7 +43,7 @@ export const ZennlessZoneSphere = ({
   }, [handleResize])
 
   const material = useMemo(() => {
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 

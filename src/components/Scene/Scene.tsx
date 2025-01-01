@@ -42,9 +42,56 @@ export const Scene = () => {
   const zennlessZoneSphereRef = useRef<THREE.Mesh>(null)
   const movingCubeRef = useRef<THREE.Group>(null)
   const cubeRef = useRef<THREE.Mesh>(null)
-  const floatingCylinerRef = useRef<THREE.Mesh>(null)
+  const floatingCylinerRefs = useRef<(THREE.Mesh | null)[]>([])
   const collisitonRef = useRef<THREE.Mesh>(null)
   const groundRef = useRef<THREE.Mesh>(null)
+
+  /**
+   * シーンに配置するオブジェクトの設定
+   */
+  //シリンダー
+  const cylinderConfigs = [
+    {
+      position: [1.05, 2.42, 0.3] as [number, number, number],
+      rotation: [Math.PI / 6, Math.PI / 9, -Math.PI / 5] as [
+        number,
+        number,
+        number,
+      ],
+      radius: 0.42,
+    },
+    {
+      position: [1.05, 2.0, -0.4] as [number, number, number],
+      rotation: [Math.PI / 8, Math.PI / 4, -Math.PI / 5] as [
+        number,
+        number,
+        number,
+      ],
+      radius: 0.42,
+    },
+    {
+      position: [-0.5, 1.5, 1.65] as [number, number, number],
+      rotation: [Math.PI / 2, -Math.PI / 3, Math.PI / 5] as [
+        number,
+        number,
+        number,
+      ],
+      radius: 0.42,
+      height: 1.5,
+      segments: 4,
+    },
+    {
+      position: [-0.9, 1.7, 0.9] as [number, number, number],
+      rotation: [-Math.PI / 8, Math.PI / 4, Math.PI / 3] as [
+        number,
+        number,
+        number,
+      ],
+      radius: 0.4,
+      height: 1.5,
+      segments: 4,
+    },
+  ]
 
   /**
    * ２種類の球体の半径を設定
@@ -64,10 +111,10 @@ export const Scene = () => {
   const { gl, scene, camera } = useThree()
 
   /**
-   * リサイズ
+   * リサイズ処理
    */
   const handleResize = useCallback(() => {
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 
@@ -86,10 +133,10 @@ export const Scene = () => {
   }, [])
 
   /**
-   * 初期設定を行う
+   * useEffectで初期設定を行う
    */
   useEffect(() => {
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 
@@ -184,14 +231,10 @@ export const Scene = () => {
     const smaaPass = new SMAAPass(width, height)
 
     if (camera) {
-      // console.log('camera_near :', camera.near, 'camera_far :', camera.far)
       //深度を取得するために、カメラの視錐台のニアサイドとファーサイドを設定
       CheckDepthPass.uniforms.cameraNear.value = camera.near
       CheckDepthPass.uniforms.cameraFar.value = camera.far
     }
-    // if (gl) {
-    //   console.log('gl_size :', gl.getSize(new THREE.Vector2()))
-    // }
 
     /**
      * コンポーザーにパスを追加
@@ -228,6 +271,32 @@ export const Scene = () => {
       contactDitectionRenderTarget_B_Ref.current = null
     }
   }, [gl, scene, camera, handleResize])
+
+  /**
+   * ループ処理内で使用するヘルパー関数を作成
+   */
+
+  // シェーダーマテリアルへの操作
+  const setShaderUniform = (
+    mesh: THREE.Mesh | null,
+    uniformName: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: any,
+  ) => {
+    if (mesh) {
+      const material = mesh.material as THREE.ShaderMaterial
+      material.uniforms[uniformName].value = value
+    }
+  }
+  // 複数のメッシュに対してuniform操作を行う
+  const setUniformsForMeshes = (
+    meshes: (THREE.Mesh | null)[],
+    uniformName: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    value: any,
+  ) => {
+    meshes.forEach((mesh) => setShaderUniform(mesh, uniformName, value))
+  }
 
   /**
    * ループ処理
@@ -339,6 +408,7 @@ export const Scene = () => {
         //   '\n',
         // )
       }
+      
       /**
        * 中央の球体を可視にする
        */
@@ -347,32 +417,36 @@ export const Scene = () => {
       }
 
       /**
-       *各オブジェクトに接触判定領域のテクスチャを割り当て
+       *各オブジェクトに接触判定領域の色を書き込むバッファのテクスチャを割り当て
        */
-      //zennlessZoneSphereRefは内部で接触判定を作っているので、ここでの割り当ては不要
-      //浮遊するシリンダーの表面に接触判定に応じたグリッドを表示する。以下同様
-      //※また、ここでreadのバッファをマテリアルに割り当てる。後述の接触部分の色をバッファに焼き付ける作業よりも後にreadの割り当てを行おうとすると、フィードバックループが発生してしまう。
-      if (floatingCylinerRef.current) {
-        const floatingCylinderShaderMaterial = floatingCylinerRef.current
-          .material as THREE.ShaderMaterial
+      //※ zennlessZoneSphereRefは内部で接触判定を作っているので、ここでの割り当ては不要
+      //※ 浮遊するシリンダーの表面に接触判定に応じたグリッドを表示する。以下同様
+      //※ また、ここでreadバッファをマテリアルに割り当てる。後述の接触部分の色をバッファに焼き付ける作業よりも後にreadバッファの割り当てを行うと、フィードバックループが発生してしまう。
 
-        floatingCylinderShaderMaterial.uniforms.tContactDitectionTexture.value =
-          readTarget?.texture
-      }
+      floatingCylinerRefs.current.forEach((cylinder) => {
+        setShaderUniform(
+          cylinder,
+          'tContactDitectionTexture',
+          readTarget?.texture,
+        )
+      })
+
+      //cube
       if (cubeRef.current) {
-        const cubeShaderMaterial = cubeRef.current
-          .material as THREE.ShaderMaterial
-
-        cubeShaderMaterial.uniforms.tContactDitectionTexture.value =
-          readTarget?.texture
+        setShaderUniform(
+          cubeRef.current,
+          'tContactDitectionTexture',
+          readTarget?.texture,
+        )
       }
 
+      // Ground
       if (groundRef.current) {
-        const groundShaderMaterial = groundRef.current
-          .material as THREE.ShaderMaterial
-
-        groundShaderMaterial.uniforms.tContactDitectionTexture.value =
-          readTarget?.texture
+        setShaderUniform(
+          groundRef.current,
+          'tContactDitectionTexture',
+          readTarget?.texture,
+        )
       }
 
       /**
@@ -381,30 +455,22 @@ export const Scene = () => {
        * 結果的に接触判定バッファには、接触判定部分が白くなったもののみを焼き付けることができる。（単に接触判定を見たいのなら、shpereに色を出せば済むが、ここでは接触判定部位のみをブラーで広げた絵作りをしたため、こうする。）
        */
       // 各オブジェクトを黒塗りに変換
-      if (zennlessZoneSphereRef.current) {
-        const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
-          .material as THREE.ShaderMaterial
-
-        zennlessZoneSphereMaterial.uniforms.uRenderContactDitection.value = 1
-      }
-      if (cubeRef.current) {
-        const cubeShaderMaterial = cubeRef.current
-          .material as THREE.ShaderMaterial
-
-        cubeShaderMaterial.uniforms.uRenderContactDitection.value = 1
-      }
-      if (floatingCylinerRef.current) {
-        const floatingCylinderShaderMaterial = floatingCylinerRef.current
-          .material as THREE.ShaderMaterial
-
-        floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 1
-      }
-      if (groundRef.current) {
-        const groundShaderMaterial = groundRef.current
-          .material as THREE.ShaderMaterial
-
-        groundShaderMaterial.uniforms.uRenderContactDitection.value = 1
-      }
+      //sphere
+      setShaderUniform(
+        zennlessZoneSphereRef.current,
+        'uRenderContactDitection',
+        1,
+      )
+      // 複数のシリンダー
+      setUniformsForMeshes(
+        floatingCylinerRefs.current,
+        'uRenderContactDitection',
+        1,
+      )
+      // Cubes
+      setShaderUniform(cubeRef.current, 'uRenderContactDitection', 1)
+      // Ground
+      setShaderUniform(groundRef.current, 'uRenderContactDitection', 1)
 
       //接触部分の色をバッファに焼き付ける
       if (writeTarget && gl && scene && camera) {
@@ -414,30 +480,22 @@ export const Scene = () => {
       }
 
       // 各オブジェクトの黒塗りを解除
-      if (zennlessZoneSphereRef.current) {
-        const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
-          .material as THREE.ShaderMaterial
-
-        zennlessZoneSphereMaterial.uniforms.uRenderContactDitection.value = 0
-      }
-      if (cubeRef.current) {
-        const cubeShaderMaterial = cubeRef.current
-          .material as THREE.ShaderMaterial
-
-        cubeShaderMaterial.uniforms.uRenderContactDitection.value = 0
-      }
-      if (floatingCylinerRef.current) {
-        const floatingCylinderShaderMaterial = floatingCylinerRef.current
-          .material as THREE.ShaderMaterial
-
-        floatingCylinderShaderMaterial.uniforms.uRenderContactDitection.value = 0
-      }
-      if (groundRef.current) {
-        const groundShaderMaterial = groundRef.current
-          .material as THREE.ShaderMaterial
-
-        groundShaderMaterial.uniforms.uRenderContactDitection.value = 0
-      }
+      //sphere
+      setShaderUniform(
+        zennlessZoneSphereRef.current,
+        'uRenderContactDitection',
+        0,
+      )
+      // 複数のシリンダー
+      setUniformsForMeshes(
+        floatingCylinerRefs.current,
+        'uRenderContactDitection',
+        0,
+      )
+      // Cubes
+      setShaderUniform(cubeRef.current, 'uRenderContactDitection', 0)
+      //ground
+      setShaderUniform(groundRef.current, 'uRenderContactDitection', 0)
 
       /**
        * エフェクトコンポーザーのレンダリング
@@ -449,6 +507,7 @@ export const Scene = () => {
     },
     /**
      * EffectComposerは、シーンが更新された後、画面に実際に描画される前にレンダーパスを実行する必要がある。useFrameの第二引数を他のコンポーネントよりも大きな数字（つまり後回し）に設定することで、React Three Fiberがシーンを更新した後、かつ最終的な描画呼び出しの前にEffectComposerがレンダリングされることを保証できる。
+     * 今回のプロジェクトでは、シーンに配置したオブジェクトそれぞれでuseFrameを使用しており、それらの第二引数には値は入れていない。そのため、ここでの第二引数は1としている。
      */
     1,
   )
@@ -468,7 +527,10 @@ export const Scene = () => {
         sphereRadius={sphereRadius}
       />
       {/* 固定された円柱 */}
-      <FloatingCylinders floatingCylinerRef={floatingCylinerRef} />
+      <FloatingCylinders
+        floatingCylinerRefs={floatingCylinerRefs}
+        configs={cylinderConfigs}
+      />
       {/* 動く立方体(接触判定は球体が担う) */}
       <MovingCubes
         movingCubeRef={movingCubeRef}

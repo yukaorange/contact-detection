@@ -44,7 +44,7 @@ html {
   font-size: calc(var(--vw) / 136.6);
   scrollbar-width: thin; //webkit
   scrollbar-color: #444 #ccc; //webkit
-  min-height: 100vh;
+  min-height: 100svh;
 
   overscroll-behavior-y: none;
 }
@@ -56,6 +56,9 @@ html {
 }
 
 body {
+  height: 100svh;
+  overflow: hidden;
+
   font-size: 1.6rem;
   letter-spacing: 0.1em;
   line-height: 1.5;

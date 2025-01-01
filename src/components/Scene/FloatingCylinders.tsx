@@ -1,30 +1,63 @@
 import React from 'react'
-import { useMemo, useCallback, useEffect } from 'react'
+import { useMemo, useCallback, useEffect, forwardRef } from 'react'
 import * as THREE from 'three'
 
-import vertexshader from '@/shaders/object/vertex.glsl'
+import vertexShader from '@/shaders/object/vertex.glsl'
 import fragmentShader from '@/shaders/object/fragment.glsl'
 import { useFrame } from '@react-three/fiber'
 
+interface CylinderConfig {
+  position: [number, number, number]
+  rotation: [number, number, number]
+  radius?: number
+  height?: number
+  segments?: number
+}
 interface FloatingCylindersProps {
-  floatingCylinerRef: React.MutableRefObject<THREE.Mesh | null>
+  floatingCylinerRefs: React.MutableRefObject<(THREE.Mesh | null)[]>
+  configs: CylinderConfig[]
+}
+interface FloatingCylinderProps {
+  config: CylinderConfig
+  uniforms: {
+    [key: string]: THREE.IUniform
+  }
 }
 
-// interface CylinderConfig {
-//   positon: number[]
-//   rotation: number[]
-//   radius?: number
-//   height?: number
-// }
+// Single cylinder component
+
+const FloatingCylinder = forwardRef<THREE.Mesh, FloatingCylinderProps>(
+  ({ config, uniforms }, ref) => {
+    const {
+      position,
+      rotation,
+      radius = 0.25,
+      height = 1,
+      segments = 24,
+    } = config
+
+    return (
+      <mesh ref={ref} position={position} rotation={rotation}>
+        <cylinderGeometry args={[radius, radius, height, segments, segments]} />
+        <shaderMaterial
+          vertexShader={vertexShader}
+          fragmentShader={fragmentShader}
+          uniforms={uniforms}
+        />
+      </mesh>
+    )
+  },
+)
+FloatingCylinder.displayName = 'FloatingCylinder'
 
 export const FloatingCylinders = ({
-  floatingCylinerRef,
+  floatingCylinerRefs,
+  configs,
 }: FloatingCylindersProps) => {
-  const dpr = Math.min(window.devicePixelRatio, 2)
-  const width = window.innerWidth * dpr
-  const height = window.innerHeight * dpr
-
   const uniforms = useMemo(() => {
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
     return {
       uTime: {
         value: 0,
@@ -38,20 +71,21 @@ export const FloatingCylinders = ({
   }, [])
 
   const handleResize = useCallback(() => {
-    const dpr = Math.min(window.devicePixelRatio, 2)
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
     const width = window.innerWidth * dpr
     const height = window.innerHeight * dpr
 
-    if (floatingCylinerRef.current) {
-      const shaderMaterial = floatingCylinerRef.current
-        .material as THREE.ShaderMaterial
+    floatingCylinerRefs.current.forEach((cylinder) => {
+      if (cylinder) {
+        const shaderMaterial = cylinder.material as THREE.ShaderMaterial
 
-      shaderMaterial.uniforms.uResolution.value = new THREE.Vector2(
-        width,
-        height,
-      )
-    }
-  }, [floatingCylinerRef])
+        shaderMaterial.uniforms.uResolution.value = new THREE.Vector2(
+          width,
+          height,
+        )
+      }
+    })
+  }, [floatingCylinerRefs])
 
   useEffect(() => {
     window.addEventListener('resize', handleResize)
@@ -61,24 +95,25 @@ export const FloatingCylinders = ({
   useFrame((state) => {
     const { clock } = state
 
-    const shaderMaterial = floatingCylinerRef.current
-      ?.material as THREE.ShaderMaterial
+    floatingCylinerRefs.current.forEach((cylinder) => {
+      if (cylinder) {
+        const shaderMaterial = cylinder.material as THREE.ShaderMaterial
 
-    shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
+        shaderMaterial.uniforms.uTime.value = clock.getElapsedTime()
+      }
+    })
   })
 
   return (
-    <mesh
-      ref={floatingCylinerRef}
-      position={[-0.5, 1.0, 1.5]}
-      rotation={[Math.PI / 4, Math.PI / 4, 0]}
-    >
-      <cylinderGeometry args={[0.25, 0.25, 1, 32, 32]} />
-      <shaderMaterial
-        vertexShader={vertexshader}
-        fragmentShader={fragmentShader}
-        uniforms={uniforms}
-      />
-    </mesh>
+    <>
+      {configs.map((config, index) => (
+        <FloatingCylinder
+          key={index}
+          ref={(el) => (floatingCylinerRefs.current[index] = el)}
+          config={config}
+          uniforms={uniforms}
+        />
+      ))}
+    </>
   )
 }

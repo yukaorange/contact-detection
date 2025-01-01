@@ -1,10 +1,20 @@
 import React from 'react'
 import * as THREE from 'three'
-import { useMemo } from 'react'
+import { useMemo, useEffect, useCallback } from 'react'
 import { useFrame } from '@react-three/fiber'
 
 import vertexshader from '@/shaders/object/vertex.glsl'
 import fragmentShader from '@/shaders/object/fragment.glsl'
+
+// interface CubeConfig {
+//   position: [number, number, number]
+//   rotation: [number, number, number]
+//   size: number
+//   movement ? : {
+
+//   }
+// }
+
 
 interface MovingCubesProps {
   movingCubeRef: React.MutableRefObject<THREE.Group | null>
@@ -22,6 +32,10 @@ export const MovingCubes = ({
   sphereRadius,
 }: MovingCubesProps) => {
   const uniforms = useMemo(() => {
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
     return {
       uTime: {
         value: 0,
@@ -29,9 +43,30 @@ export const MovingCubes = ({
       uRenderContactDitection: {
         value: 0,
       },
+      uResolution: { value: new THREE.Vector2(width, height) },
       tContactDitectionTexture: { value: null },
     }
   }, [])
+
+  const handleResize = useCallback(() => {
+    const dpr = Math.min(window.devicePixelRatio, 1.5)
+    const width = window.innerWidth * dpr
+    const height = window.innerHeight * dpr
+
+    if (cubeRef.current) {
+      const shaderMaterial = cubeRef.current.material as THREE.ShaderMaterial
+
+      shaderMaterial.uniforms.uResolution.value = new THREE.Vector2(
+        width,
+        height,
+      )
+    }
+  }, [cubeRef])
+
+  useEffect(() => {
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [handleResize])
 
   useFrame((state) => {
     const { clock } = state

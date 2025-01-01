@@ -16,12 +16,11 @@ const App = () => {
       <Sns />
       <Canvas
         camera={{
-          position: [2, 2, 6],
           fov: 45,
           near: 0.1,
           far: 15.0, //far彩度の距離が遠すぎると、深度が極端に大きくなり、扱えないので、適当な値に設定する。
         }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
       >
         <Perf position="top-left" />
         <Suspense fallback={<Loader />}>
