@@ -59,11 +59,18 @@ export const ZennlessZoneSphere = ({
         uResolution: {
           value: new THREE.Vector2(width, height),
         }, //よって、gl_fragcoordの正規化に使うだけなので、リサイズは不要...初期化したときのままで、0 -> 1 とできているし、それはリサイズ後も変わらないため。
-        contactPoint: {
-          value: new THREE.Vector3(0, 0, 0),
+        uContactPoints: {
+          value: [
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0),
+          ],
         },
-        uContactIntensity: { value: 0 },
-        uHasContact: { value: 0 },
+        uContactIntensities: {
+          value: new Float32Array([0.0, 0.0, 0.0, 0.0]),
+        },
+        uNumContacts: { value: 0 },
         uTime: { value: 0 },
         uRenderContactDitection: {
           value: 0,

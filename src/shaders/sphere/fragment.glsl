@@ -3,8 +3,6 @@ uniform float cameraFar;
 uniform float uTime;
 uniform float uFresnelFactor;
 uniform float uRenderContactDitection;
-uniform float uContactIntensity;
-uniform float uHasContact;
 uniform vec2 uResolution;
 uniform vec3 contactPoint;
 
@@ -83,13 +81,13 @@ void main() {
   //接触判定の色（ベース）
   vec3 contactColor = vec3(1.0 - contactDiffuseValue) * rainbowColor * 0.064;
 
-  vec3 contactColorForGrid = vec3(1.0 - contactDiffuseValueForGrid) ;
+  vec3 contactColorForGrid = vec3(1.0 - contactDiffuseValueForGrid);
 
   //------- 衝突判定の色(今はまだベース職のみ。グリッチ的な加工を施したい)
   //衝突判定
   float distanceFromContact = clamp(length(vWorldPosition - contactPoint), 0.0, 1.0);//clampしておかないと、影響範囲が制限できない。
 
-  vec3 distanceFromContactColor = vec3(1.0 - distanceFromContact) * uContactIntensity * baseColor.rgb;
+  vec3 distanceFromContactColor = vec3(1.0 - distanceFromContact) * baseColor.rgb;
 
   //-------フレネル反射の色
 
@@ -180,6 +178,8 @@ void main() {
     color = contactColorForGrid;
     alpha = 1.0;
   }
+
+  // alpha = 0.5;//デバッグ用
 
   gl_FragColor = vec4(color, alpha);
 

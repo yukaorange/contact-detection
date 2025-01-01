@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from 'react'
-import { Ground } from './Ground'
-import { ZennlessZoneSphere } from './ZennlessZoneSphere'
-import { MovingCubes } from './MovingCubes'
+import { Ground } from './Ground/Ground'
+import { ZennlessZoneSphere } from './ZennlessZoneSphere/ZennlessZoneSphere'
+import { MovingCubes } from './MovingCubes/MovingCubes'
 import * as THREE from 'three'
 import { useFrame, useThree } from '@react-three/fiber'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer'
@@ -13,8 +13,12 @@ import { ContactDitectionPassConfig } from './PostProcess/ContactDitectionPassCo
 
 import { useEffect } from 'react'
 
-// import { DragControls } from '@react-three/drei'
-import { FloatingCylinders } from './FloatingCylinders'
+import { FloatingCylinders } from './FloatingCylinders/FloatingCylinders'
+
+type Contact = {
+  point: THREE.Vector3
+  intensity: number
+}
 
 export const Scene = () => {
   /**
@@ -40,11 +44,11 @@ export const Scene = () => {
    * シーンに配置する各メッシュのRefオブジェクトを初期化
    */
   const zennlessZoneSphereRef = useRef<THREE.Mesh>(null)
-  const movingCubeRef = useRef<THREE.Group>(null)
-  const cubeRef = useRef<THREE.Mesh>(null)
+  const cubeRefs = useRef<(THREE.Mesh | null)[]>([])
+  const collisionSphereRefs = useRef<(THREE.Mesh | null)[]>([])
+  const groupRefs = useRef<(THREE.Group | null)[]>([])
+  const groundRef = useRef<THREE.Mesh | null>(null)
   const floatingCylinerRefs = useRef<(THREE.Mesh | null)[]>([])
-  const collisitonRef = useRef<THREE.Mesh>(null)
-  const groundRef = useRef<THREE.Mesh>(null)
 
   /**
    * シーンに配置するオブジェクトの設定
@@ -58,16 +62,18 @@ export const Scene = () => {
         number,
         number,
       ],
+      segments: 16,
       radius: 0.42,
     },
     {
-      position: [1.05, 2.0, -0.4] as [number, number, number],
-      rotation: [Math.PI / 8, Math.PI / 4, -Math.PI / 5] as [
+      position: [1.5, 1.75, -0.1] as [number, number, number],
+      rotation: [Math.PI / 8, Math.PI / 4, -Math.PI / 3] as [
         number,
         number,
         number,
       ],
-      radius: 0.42,
+      segments: 16,
+      radius: 0.3,
     },
     {
       position: [-0.5, 1.5, 1.65] as [number, number, number],
@@ -90,6 +96,65 @@ export const Scene = () => {
       radius: 0.4,
       height: 1.5,
       segments: 4,
+    },
+  ]
+  //cube
+  const cubeConfigs = [
+    {
+      position: [1.0, 1, 0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'circular' as const,
+        enabled: true,
+        plane: 'xz' as const,
+        radius: 1.5,
+        speed: 0.5,
+        phase: ((Math.PI * 2) / 4) * 1,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0.0] as [number, number, number],
+      },
+    },
+    {
+      position: [-1, 1.0, 0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'circular' as const,
+        enabled: true,
+        plane: 'xz' as const,
+        radius: 1.5,
+        speed: 0.5,
+        phase: ((Math.PI * 2) / 4) * 2,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+      },
+    },
+    {
+      position: [0.0, 1, 1.0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'circular' as const,
+        enabled: true,
+        plane: 'xz' as const,
+        radius: 1.5,
+        speed: 0.5,
+        phase: ((Math.PI * 2) / 4) * 3,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+      },
+    },
+    {
+      position: [0.0, 1, -1.0] as [number, number, number],
+      size: 0.75,
+      animation: {
+        type: 'circular' as const,
+        enabled: true,
+        plane: 'xz' as const,
+        radius: 1.5,
+        speed: 0.5,
+        phase: ((Math.PI * 2) / 4) * 4,
+        rotationEnabled: true,
+        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+      },
     },
   ]
 
@@ -332,33 +397,45 @@ export const Scene = () => {
       /**
        * 接触点の割り出し
        */
-      if (zennlessZoneSphereRef.current && collisitonRef.current) {
+      if (zennlessZoneSphereRef.current) {
         //マテリアルの準備
         const shaderMaterial = zennlessZoneSphereRef.current
           .material as THREE.ShaderMaterial
 
-        //中央の球体のワールド座標を取得
+        //中央の球体のワールド座標を格納する変数
         const sphereCenter = new THREE.Vector3()
+        //中央の球体のワールド座標をsphereCenterに格納
         zennlessZoneSphereRef.current.getWorldPosition(sphereCenter)
 
-        //接触判定用の球体のワールド座標を取得
-        const collisionCenter = new THREE.Vector3()
-        collisitonRef.current.getWorldPosition(collisionCenter)
+        const contacts: Contact[] = []
 
-        //接触判定用の球体の中心から中央の球体の中心へのベクトルを取得
-        //subは呼び出し元のベクトルを変更するので、clone()してから呼び出す。collisionCenterからsphereCenterへの正規化ベクトルを取得
-        const direction = collisionCenter.clone().sub(sphereCenter).normalize()
-        const distance = collisionCenter.distanceTo(sphereCenter)
+        collisionSphereRefs.current.forEach((collisionSphere) => {
+          if (!collisionSphere) return
 
-        const totalRadius = sphereRadius + collisionSphereRadius
+          const collisionCenter = new THREE.Vector3()
 
-        // 接触が発生している場合のみ接触点を計算
-        if (distance < totalRadius) {
-          // 完全にめり込んだ状態（内側に収まった状態）をチェック
-          if (distance <= Math.abs(sphereRadius - collisionSphereRadius)) {
-            // 完全にめり込んだ状態では接触なし
-            shaderMaterial.uniforms.uHasContact.value = 0.0
-          } else {
+          //接触判定用の球体のワールド座標を取得
+          collisionSphere.getWorldPosition(collisionCenter)
+
+          //接触判定用の球体の中心から中央の球体の中心へのベクトルを取得
+          //subは呼び出し元のベクトルを変更するので、clone()してから呼び出す。collisionCenterからsphereCenterへの正規化ベクトルを取得
+          const direction = collisionCenter
+            .clone()
+            .sub(sphereCenter)
+            .normalize()
+          //中央の球体と接触判定用の球体の中心との距離を取得
+          const distance = collisionCenter.distanceTo(sphereCenter)
+          //中央の球体の半径と接触判定用の球体の半径の和を取得
+          const totalRadius = sphereRadius + collisionSphereRadius
+
+          // 接触が発生している場合のみ接触点を計算
+          if (distance < totalRadius) {
+            // 完全にめり込んだ状態（内側に収まった状態）をチェック
+            if (distance <= Math.abs(sphereRadius - collisionSphereRadius)) {
+              // 完全にめり込んだ状態では接触なし
+              return
+            }
+
             //めり込みの進行度を計算
             const penetrationProgress =
               (totalRadius - distance) /
@@ -375,19 +452,35 @@ export const Scene = () => {
               .clone()
               .add(direction.multiplyScalar(sphereRadius))
 
-            shaderMaterial.uniforms.contactPoint.value = contactPoint
-            shaderMaterial.uniforms.uContactIntensity.value =
-              normalizedPenetrationDepth
-            shaderMaterial.uniforms.uHasContact.value = 1.0
-
-            // デバッグ用
-            // console.log('接触点:', contactPoint)
+            contacts.push({
+              point: contactPoint,
+              intensity: normalizedPenetrationDepth,
+            })
           }
-          //接触量
-        } else {
-          // 接触していない場合
-          shaderMaterial.uniforms.uHasContact.value = 0.0
-        }
+
+          const numContacts = Math.min(contacts.length, 4)
+
+          // 接触点の数を格納
+          shaderMaterial.uniforms.uNumContacts.value = numContacts
+
+          // 接触点配列を更新
+          for (let i = 0; i < 4; i++) {
+            if (i < contacts.length) {
+              // 接触点の座標を格納
+              shaderMaterial.uniforms.uContactPoints.value[i].copy(
+                contacts[i].point,
+              )
+              // 接触点の強度を格納
+              shaderMaterial.uniforms.uContactIntensities.value[i] =
+                contacts[i].intensity
+            } else {
+              // 接触点が存在しない場合は0で初期化
+              shaderMaterial.uniforms.uContactPoints.value[i].set(0, 0, 0)
+              // 接触点の強度を0で初期化
+              shaderMaterial.uniforms.uContactIntensities.value[i] = 0
+            }
+          }
+        })
 
         // デバッグ用
         // console.log(
@@ -408,7 +501,7 @@ export const Scene = () => {
         //   '\n',
         // )
       }
-      
+
       /**
        * 中央の球体を可視にする
        */
@@ -432,13 +525,9 @@ export const Scene = () => {
       })
 
       //cube
-      if (cubeRef.current) {
-        setShaderUniform(
-          cubeRef.current,
-          'tContactDitectionTexture',
-          readTarget?.texture,
-        )
-      }
+      cubeRefs.current.forEach((cube) => {
+        setShaderUniform(cube, 'tContactDitectionTexture', readTarget?.texture)
+      })
 
       // Ground
       if (groundRef.current) {
@@ -468,7 +557,7 @@ export const Scene = () => {
         1,
       )
       // Cubes
-      setShaderUniform(cubeRef.current, 'uRenderContactDitection', 1)
+      setUniformsForMeshes(cubeRefs.current, 'uRenderContactDitection', 1)
       // Ground
       setShaderUniform(groundRef.current, 'uRenderContactDitection', 1)
 
@@ -493,7 +582,7 @@ export const Scene = () => {
         0,
       )
       // Cubes
-      setShaderUniform(cubeRef.current, 'uRenderContactDitection', 0)
+      setUniformsForMeshes(cubeRefs.current, 'uRenderContactDitection', 0)
       //ground
       setShaderUniform(groundRef.current, 'uRenderContactDitection', 0)
 
@@ -533,14 +622,13 @@ export const Scene = () => {
       />
       {/* 動く立方体(接触判定は球体が担う) */}
       <MovingCubes
-        movingCubeRef={movingCubeRef}
-        collisionSphereRef={collisitonRef}
-        cubeRef={cubeRef}
-        cubeSize={cubeSize}
+        cubeRefs={cubeRefs}
+        collisionSphereRefs={collisionSphereRefs}
+        groupRefs={groupRefs}
+        configs={cubeConfigs}
         sphereRadius={collisionSphereRadius}
       />
-      {/* <DragControls axisLock="y">
-      </DragControls> */}
+      {/* ground */}
       <Ground groundRef={groundRef} />
     </>
   )

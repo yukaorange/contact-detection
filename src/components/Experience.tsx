@@ -9,9 +9,9 @@ export const Experience = (): JSX.Element => {
   const { camera } = useThree()
 
   if (window.innerWidth < 768) {
-    camera.position.set(2, 6, 12)
+    camera.position.set(4.5, 6, 12)
   } else {
-    camera.position.set(2, 6, 8)
+    camera.position.set(4.5, 3.5, 6.0)
   }
 
   return (
