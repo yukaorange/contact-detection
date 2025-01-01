@@ -109,10 +109,10 @@ export const Scene = () => {
         enabled: true,
         plane: 'xz' as const,
         radius: 2.0,
-        speed: 0.75,
+        speed: 0.5,
         phase: 0,
         rotationEnabled: true,
-        rotationSpeed: [0.01, 0.01, 0] as [number, number, number],
+        rotationSpeed: [0.02, 0.02, 0] as [number, number, number],
       },
     },
     {
