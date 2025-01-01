@@ -29,7 +29,8 @@ void main() {
   vec2 fragCoord = gl_FragCoord.xy / uResolution.xy;
 
   vec4 baseColor;
-  baseColor = vec4(0.031, 0.0, 0.078, 1.0); // #080014
+
+  baseColor = vec4(0.0151, 0.0, 0.028, 1.0); // #080014
   // baseColor = vec4(0.09, 0.0, 0.22, 1.0); // mobile
 
   //------- ノイズ

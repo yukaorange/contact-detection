@@ -136,8 +136,8 @@ export const Scene = () => {
       animation: {
         type: 'linear' as const,
         enabled: true,
-        axis: 'z',
-        amplitude: 2.250, // 振幅（移動量）
+        axis: 'z' as 'x' | 'y' | 'z',
+        amplitude: 2.25, // 振幅（移動量）
         frequency: 0.5, // 周波数（速さ）
         phase: 0, // 位相（開始位置のオフセット）
         rotationEnabled: true,
@@ -150,8 +150,8 @@ export const Scene = () => {
       animation: {
         type: 'linear' as const,
         enabled: true,
-        axis: 'x',
-        amplitude: 2.50, // 振幅（移動量）
+        axis: 'x' as 'x' | 'y' | 'z', // Fix here,
+        amplitude: 2.5, // 振幅（移動量）
         frequency: 0.75, // 周波数（速さ）
         phase: 0, // 位相（開始位置のオフセット）
         rotationEnabled: true,
@@ -317,7 +317,7 @@ export const Scene = () => {
     //-------ブルームエフェクト
     const unrealBloomPass = new UnrealBloomPass(
       new THREE.Vector2(width, height),
-      0.2, //strength
+      0.28, //strength
       0.01, //radius
       0.01, //threshold
     )
