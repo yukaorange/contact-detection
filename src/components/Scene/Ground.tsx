@@ -21,6 +21,7 @@ export const Ground = ({ groundRef }: GroundProps) => {
       uRenderContactDitection: {
         value: 0,
       },
+      tContactDitectionTexture: { value: null },
     }
   }, [])
 

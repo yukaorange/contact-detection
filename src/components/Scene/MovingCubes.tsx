@@ -3,8 +3,8 @@ import * as THREE from 'three'
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 
-import vertexshader from '@/shaders/movingCube/vertex.glsl'
-import fragmentShader from '@/shaders/movingCube/fragment.glsl'
+import vertexshader from '@/shaders/object/vertex.glsl'
+import fragmentShader from '@/shaders/object/fragment.glsl'
 
 interface MovingCubesProps {
   movingCubeRef: React.MutableRefObject<THREE.Group | null>
@@ -29,6 +29,7 @@ export const MovingCubes = ({
       uRenderContactDitection: {
         value: 0,
       },
+      tContactDitectionTexture: { value: null },
     }
   }, [])
 

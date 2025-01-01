@@ -21,11 +21,20 @@ export const Scene = () => {
    * コンポーザーを保持
    */
   const composerRef = useRef<EffectComposer | null>(null)
-  //depthRenderTargetは使わないが、dispose()するためにuseStateで保持
+  //深度取得用のフレームバッファ
   const depthAndBackgroundRenderTargetRef =
     useRef<THREE.WebGLRenderTarget | null>(null)
-  const contactDitectionRenderTargetRef =
+
+  //接触判定用のフレームバッファ（ダブルバッファリングを用いて、接触判定をシーン内オブジェクトに適用する）
+  const contactDitectionRenderTarget_A_Ref =
     useRef<THREE.WebGLRenderTarget | null>(null)
+  const contactDitectionRenderTarget_B_Ref =
+    useRef<THREE.WebGLRenderTarget | null>(null)
+
+  const writeBufferIndexRef = useRef<0 | 1>(0)
+
+  //ダブルバッファリングにつき、接触判定域の色を生成するパスも参照を持っておく
+  const contactDitectionPassRef = useRef<ShaderPass | null>(null)
 
   /**
    * シーンに配置する各メッシュのRefオブジェクトを初期化
@@ -36,6 +45,7 @@ export const Scene = () => {
   const floatingCylinerRef = useRef<THREE.Mesh>(null)
   const collisitonRef = useRef<THREE.Mesh>(null)
   const groundRef = useRef<THREE.Mesh>(null)
+
   /**
    * ２種類の球体の半径を設定
    */
@@ -65,8 +75,11 @@ export const Scene = () => {
     if (depthAndBackgroundRenderTargetRef.current) {
       depthAndBackgroundRenderTargetRef.current.setSize(width, height)
     }
-    if (contactDitectionRenderTargetRef.current) {
-      contactDitectionRenderTargetRef.current.setSize(width, height)
+    if (contactDitectionRenderTarget_A_Ref.current) {
+      contactDitectionRenderTarget_A_Ref.current.setSize(width, height)
+    }
+    if (contactDitectionRenderTarget_B_Ref.current) {
+      contactDitectionRenderTarget_B_Ref.current.setSize(width, height)
     }
 
     composerRef.current?.setSize(width, height)
@@ -100,8 +113,9 @@ export const Scene = () => {
       },
     )
     depthAndBackgroundRenderTargetRef.current = depthAndBackgroundRenderTarget
-    //------- 接触判定シーンをレンダリングするための下準備
-    const contactDitectionRenderTarget = new THREE.WebGLRenderTarget(
+
+    //------- 接触判定シーンをレンダリングするための下準備(ダブルバッファリングであるため、２枚のフレームバッファを初期化)
+    const contactDitectionRenderTargetA = new THREE.WebGLRenderTarget(
       width,
       height,
       {
@@ -111,45 +125,62 @@ export const Scene = () => {
         colorSpace: THREE.LinearSRGBColorSpace,
       },
     )
-    contactDitectionRenderTargetRef.current = contactDitectionRenderTarget
+    const contactDitectionRenderTargetB = new THREE.WebGLRenderTarget(
+      width,
+      height,
+      {
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+        type: THREE.UnsignedByteType,
+        colorSpace: THREE.LinearSRGBColorSpace,
+      },
+    )
+    contactDitectionRenderTarget_A_Ref.current = contactDitectionRenderTargetA
+    contactDitectionRenderTarget_B_Ref.current = contactDitectionRenderTargetB
 
-    //------- エフェクトコンポーザーの設定
-    //エフェクトコンポーザーの初期化
+    /**
+     * エフェクトコンポーザー
+     */
+    //-------エフェクトコンポーザーの初期化
     const effectComposer = new EffectComposer(gl)
 
-    //レンダリングしたシーンを出力できるパス
+    //-------レンダリングしたシーンを出力できるパス
     const renderPass = new RenderPass(scene, camera)
 
-    //深度が取れているかの確認用パス（※デバッグ用）
+    //-------深度が取れているかの確認用パス（※デバッグ用）
     const CheckDepthPass = new ShaderPass(CheckDepthPassConfig)
-    /**
-     * 深度パスのuniformsに、深度テクスチャを設定する
-     */
+
     CheckDepthPass.uniforms.tDepth.value =
       depthAndBackgroundRenderTarget.depthTexture
     CheckDepthPass.uniforms.cameraNear.value = camera.near
     CheckDepthPass.uniforms.cameraFar.value = camera.far
 
-    //接触判定のみをレンダリングするためのパス（エフェクトを適用する）
+    //--------接触判定のみをレンダリングするためのパス（エフェクトを適用する）
     const contactDitectionPass = new ShaderPass(ContactDitectionPassConfig)
 
+    //ダブルバッファリングで、Aを初期値として設定
     contactDitectionPass.uniforms.tContactDitectionDiffuse.value =
-      contactDitectionRenderTarget.texture
+      contactDitectionRenderTargetA.texture
+
     contactDitectionPass.uniforms.uResolution.value = new THREE.Vector2(
       width,
       height,
     )
+
     contactDitectionPass.uniforms.uAspect.value = width / height
 
-    // ブルームエフェクト
+    //参照をもっておき、ループ時にテクスチャを交換できるようにする
+    contactDitectionPassRef.current = contactDitectionPass
+
+    //-------ブルームエフェクト
     const unrealBloomPass = new UnrealBloomPass(
       new THREE.Vector2(width, height),
-      0.36, //strength
+      0.2, //strength
       0.01, //radius
       0.01, //threshold
     )
 
-    // 低負荷ジャギー軽減処理
+    //-------低負荷ジャギー軽減処理
     const smaaPass = new SMAAPass(width, height)
 
     if (camera) {
@@ -162,10 +193,14 @@ export const Scene = () => {
     //   console.log('gl_size :', gl.getSize(new THREE.Vector2()))
     // }
 
+    /**
+     * コンポーザーにパスを追加
+     */
     effectComposer.addPass(renderPass)
     //深度を確認するときだけ有効にする
     // effectComposer.addPass(CheckDepthPass)
-    effectComposer.addPass(contactDitectionPass)
+    //接触判定の色を付与（板ポリではなく、オブジェクトで使いたいから、いまはコメントアウト）
+    // effectComposer.addPass(contactDitectionPass)
     effectComposer.addPass(unrealBloomPass)
     effectComposer.addPass(smaaPass)
 
@@ -181,12 +216,16 @@ export const Scene = () => {
       if (depthAndBackgroundRenderTargetRef.current) {
         depthAndBackgroundRenderTargetRef.current.dispose()
       }
-      if (contactDitectionRenderTargetRef.current) {
-        contactDitectionRenderTargetRef.current.dispose()
+      if (contactDitectionRenderTarget_A_Ref.current) {
+        contactDitectionRenderTarget_A_Ref.current.dispose()
+      }
+      if (contactDitectionRenderTarget_B_Ref.current) {
+        contactDitectionRenderTarget_B_Ref.current.dispose()
       }
       composerRef.current = null
       depthAndBackgroundRenderTargetRef.current = null
-      contactDitectionRenderTargetRef.current = null
+      contactDitectionRenderTarget_A_Ref.current = null
+      contactDitectionRenderTarget_B_Ref.current = null
     }
   }, [gl, scene, camera, handleResize])
 
@@ -195,6 +234,16 @@ export const Scene = () => {
    */
   useFrame(
     (_, delta) => {
+      // 書き込み用と読み込み用のバッファ
+      const writeTarget =
+        writeBufferIndexRef.current === 0
+          ? contactDitectionRenderTarget_A_Ref.current
+          : contactDitectionRenderTarget_B_Ref.current
+      const readTarget =
+        writeBufferIndexRef.current === 0
+          ? contactDitectionRenderTarget_B_Ref.current
+          : contactDitectionRenderTarget_A_Ref.current
+
       /**
        * 中央の球体、接触判定用の球体を不可視にする
        */
@@ -228,7 +277,7 @@ export const Scene = () => {
         collisitonRef.current.getWorldPosition(collisionCenter)
 
         //接触判定用の球体の中心から中央の球体の中心へのベクトルを取得
-        //subは呼び出し元のベクトルを変更するので、clone()してから呼び出している。collisionCenterからsphereCenterへの正規化ベクトルを取得
+        //subは呼び出し元のベクトルを変更するので、clone()してから呼び出す。collisionCenterからsphereCenterへの正規化ベクトルを取得
         const direction = collisionCenter.clone().sub(sphereCenter).normalize()
         const distance = collisionCenter.distanceTo(sphereCenter)
 
@@ -298,6 +347,35 @@ export const Scene = () => {
       }
 
       /**
+       *各オブジェクトに接触判定領域のテクスチャを割り当て
+       */
+      //zennlessZoneSphereRefは内部で接触判定を作っているので、ここでの割り当ては不要
+      //浮遊するシリンダーの表面に接触判定に応じたグリッドを表示する。以下同様
+      //※また、ここでreadのバッファをマテリアルに割り当てる。後述の接触部分の色をバッファに焼き付ける作業よりも後にreadの割り当てを行おうとすると、フィードバックループが発生してしまう。
+      if (floatingCylinerRef.current) {
+        const floatingCylinderShaderMaterial = floatingCylinerRef.current
+          .material as THREE.ShaderMaterial
+
+        floatingCylinderShaderMaterial.uniforms.tContactDitectionTexture.value =
+          readTarget?.texture
+      }
+      if (cubeRef.current) {
+        const cubeShaderMaterial = cubeRef.current
+          .material as THREE.ShaderMaterial
+
+        cubeShaderMaterial.uniforms.tContactDitectionTexture.value =
+          readTarget?.texture
+      }
+
+      if (groundRef.current) {
+        const groundShaderMaterial = groundRef.current
+          .material as THREE.ShaderMaterial
+
+        groundShaderMaterial.uniforms.tContactDitectionTexture.value =
+          readTarget?.texture
+      }
+
+      /**
        * 接触判定バッファに接触部分の色を焼き付ける。
        * そのために、各オブジェクトを黒塗りに変換してレンダリングし、接触部分の色を取得する必要がある。
        * 結果的に接触判定バッファには、接触判定部分が白くなったもののみを焼き付けることができる。（単に接触判定を見たいのなら、shpereに色を出せば済むが、ここでは接触判定部位のみをブラーで広げた絵作りをしたため、こうする。）
@@ -328,12 +406,13 @@ export const Scene = () => {
         groundShaderMaterial.uniforms.uRenderContactDitection.value = 1
       }
 
-      if (contactDitectionRenderTargetRef.current && gl && scene && camera) {
-        gl.setRenderTarget(contactDitectionRenderTargetRef.current)
+      //接触部分の色をバッファに焼き付ける
+      if (writeTarget && gl && scene && camera) {
+        gl.setRenderTarget(writeTarget)
         gl.render(scene, camera)
         gl.setRenderTarget(null)
       }
-      
+
       // 各オブジェクトの黒塗りを解除
       if (zennlessZoneSphereRef.current) {
         const zennlessZoneSphereMaterial = zennlessZoneSphereRef.current
@@ -364,6 +443,9 @@ export const Scene = () => {
        * エフェクトコンポーザーのレンダリング
        */
       composerRef.current?.render(delta)
+
+      // バッファの交換を行う
+      writeBufferIndexRef.current = writeBufferIndexRef.current === 0 ? 1 : 0
     },
     /**
      * EffectComposerは、シーンが更新された後、画面に実際に描画される前にレンダーパスを実行する必要がある。useFrameの第二引数を他のコンポーネントよりも大きな数字（つまり後回し）に設定することで、React Three Fiberがシーンを更新した後、かつ最終的な描画呼び出しの前にEffectComposerがレンダリングされることを保証できる。
